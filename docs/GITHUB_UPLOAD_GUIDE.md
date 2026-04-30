@@ -18,7 +18,7 @@
 
 - It keeps the public tree very close to the working local repo.
 - It drops generated build output and machine-specific clutter.
-- It intentionally excludes `reference/original-distribution/`, which contains the archived original CamelCrusher distribution and should not be republished blindly.
+- It intentionally excludes the full `reference/` tree, which is for local reverse-engineering and should not be shipped in the public repo.
 
 ## Suggested First GitHub Structure
 

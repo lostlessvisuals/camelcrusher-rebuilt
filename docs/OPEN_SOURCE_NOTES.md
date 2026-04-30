@@ -11,7 +11,7 @@ Keep the shared core and all three wrapper paths publishable from one repo.
 - Treat the legacy `VST2` same-identity target as a first-class product and source format.
 - Keep the repo-local `src/compat_vst2/sdk/pluginterfaces/vst2.x` compatibility headers scoped to the `VST2` path.
 - Keep trademark-sensitive names, legacy UID constants, and compatibility-specific wrapper behavior centralized instead of scattering them through the repo.
-- Keep the public export very close to the local working tree. The current plan is to strip generated artifacts and the archived original vendor distribution, not to fork the repo into a visually different public variant.
+- Keep the public export very close to the local working tree, but keep the full `reference/` tree out of the public repo.
 
 ## Fixture Hygiene
 
@@ -45,5 +45,5 @@ Keep the shared core and all three wrapper paths publishable from one repo.
   - generated build products
   - release bundles
   - Python caches and macOS Finder clutter
-  - `reference/original-distribution/`, which contains the original vendor distribution used for reverse-engineering
+  - the full `reference/` tree, including reverse-engineering assets and archived vendor material
 - The export intentionally keeps the current source layout, wrapper code, shared UI assets, and checked-in fixtures so the public tree stays close to local development.
