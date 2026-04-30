@@ -16,7 +16,11 @@ It currently targets:
 
 ## Download
 
-Download the latest macOS installer from [GitHub Releases](https://github.com/lostlessvisuals/camelcrusher-rebuilt/releases).
+Download the current macOS installer directly from the repo:
+
+- [CamelCrusher-Rebuilt-0.7.0.pkg](downloads/CamelCrusher-Rebuilt-0.7.0.pkg)
+
+Versioned announcement posts can also live on [GitHub Releases](https://github.com/lostlessvisuals/camelcrusher-rebuilt/releases).
 
 ## Why
 
