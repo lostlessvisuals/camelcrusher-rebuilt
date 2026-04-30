@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+app_path="/Applications/@CAMELCRUSHER_AU_HOST_APP_INSTALL_NAME@"
+
+if [[ -d "$app_path" ]]; then
+  if command -v pluginkit >/dev/null 2>&1; then
+    pluginkit -a "$app_path" >/dev/null 2>&1 || true
+  fi
+  if command -v open >/dev/null 2>&1; then
+    open -gj "$app_path" >/dev/null 2>&1 || true
+  fi
+fi
+
+exit 0

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+canonical_bundle="/Library/Audio/Plug-Ins/VST/@CAMELCRUSHER_VST2_BUNDLE_NAME@.vst"
+legacy_local_dir="/Library/Audio/Plug-Ins/VST2"
+legacy_local_bundle="$legacy_local_dir/@CAMELCRUSHER_VST2_BUNDLE_NAME@.vst"
+
+console_user="$(stat -f '%Su' /dev/console 2>/dev/null || true)"
+console_home=""
+if [[ -n "$console_user" && "$console_user" != "root" ]]; then
+  console_home="$(dscl . -read "/Users/$console_user" NFSHomeDirectory 2>/dev/null | awk '{print $2}')"
+fi
+
+ensure_symlink() {
+  local target="$1"
+  local link_path="$2"
+
+  mkdir -p "$(dirname "$link_path")"
+
+  if [[ -L "$link_path" ]]; then
+    rm -f "$link_path"
+  elif [[ -e "$link_path" ]]; then
+    return 0
+  fi
+
+  ln -s "$target" "$link_path"
+}
+
+if [[ -d "$canonical_bundle" ]]; then
+  ensure_symlink "$canonical_bundle" "$legacy_local_bundle"
+
+  if [[ -n "$console_home" && -d "$console_home" ]]; then
+    ensure_symlink "$canonical_bundle" "$console_home/Library/Audio/Plug-Ins/VST/@CAMELCRUSHER_VST2_BUNDLE_NAME@.vst"
+    ensure_symlink "$canonical_bundle" "$console_home/Library/Audio/Plug-Ins/VST2/@CAMELCRUSHER_VST2_BUNDLE_NAME@.vst"
+    chown -h "$console_user":staff \
+      "$console_home/Library/Audio/Plug-Ins/VST/@CAMELCRUSHER_VST2_BUNDLE_NAME@.vst" \
+      "$console_home/Library/Audio/Plug-Ins/VST2/@CAMELCRUSHER_VST2_BUNDLE_NAME@.vst" \
+      >/dev/null 2>&1 || true
+  fi
+fi
+
+exit 0

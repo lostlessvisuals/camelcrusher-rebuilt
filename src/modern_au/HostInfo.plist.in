@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleDisplayName</key>
+  <string>@CAMELCRUSHER_AU_HOST_APP_DISPLAY_NAME@</string>
+  <key>CFBundleExecutable</key>
+  <string>@CAMELCRUSHER_AU_HOST_APP_EXECUTABLE@</string>
+  <key>CFBundleIdentifier</key>
+  <string>@CAMELCRUSHER_AU_HOST_APP_IDENTIFIER@</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>@CAMELCRUSHER_AU_HOST_APP_DISPLAY_NAME@</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>@CAMELCRUSHER_RELEASE_VERSION@</string>
+  <key>CFBundleVersion</key>
+  <string>@CAMELCRUSHER_RELEASE_BUILD@</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>@CAMELCRUSHER_MACOS_MIN_VERSION@</string>
+  <key>LSUIElement</key>
+  <true/>
+</dict>
+</plist>

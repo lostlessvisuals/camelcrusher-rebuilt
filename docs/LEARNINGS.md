@@ -1,0 +1,139 @@
+# Learnings
+
+## Durable Compatibility Facts
+
+- Inspected Altare Ableton Live sets store CamelCrusher as a `VST2` plug-in, not just as an `AU`.
+- In sampled Live fixtures, CamelCrusher resolves to:
+  - Path: `/Library/Audio/Plug-Ins/VST2/CamelCrusher.vst`
+  - Plug-in name: `CamelCrusher`
+  - Unique ID: `1130447730` which decodes to `CaCr`
+  - Parameter count: `17`
+  - Program count: `20`
+- Live stores both:
+  - an explicit parameter list with named float parameters
+  - a binary preset/state buffer inside the `.als`
+- One sampled Catalyst fixture stores these legacy VST2 parameter names:
+  - `DistOn`
+  - `DistMech`
+  - `DistTube`
+  - `MmFilterOn`
+  - `MmFilterCutoff`
+  - `MmFilterRes`
+  - `CompressOn`
+  - `CompressAmount`
+  - `CompressMode`
+  - `MasterOn`
+  - `MasterMix`
+  - `MasterVolume`
+  - `Unused1`
+  - `Unused2`
+  - `Unused3`
+  - `Unused4`
+  - `Unused5`
+- The sampled preset buffer contains embedded factory preset names, which implies that full session recall may rely on parsing or reproducing the old chunk format, not just restoring 17 float values.
+- The installed macOS CamelCrusher `AU` exists and validates separately, but it exposes a different parameter surface than the legacy Live `VST2` fixture data. Do not assume AU recall is a drop-in answer for VST2 Live sets.
+- On this machine, the archived `VST2_SDK/public.sdk/source/vst2.x` helper layer was present locally, but the old `pluginterfaces/vst2.x/aeffect*.h` interface headers it expected were missing. Keeping a tiny repo-local compatibility copy of those interface definitions was enough to unblock the same-identity `VST2` build.
+- Probing the original Intel-only CamelCrusher bundle under Rosetta produced useful raw VST2 ground truth that is separate from the `.als` fixture XML:
+  - `AEffect.flags = 57`, which decodes to `HasEditor | CanMono | CanReplacing | ProgramChunks`
+  - `getPlugCategory() = 0`
+  - `numInputs = 2`, `numOutputs = 2`
+  - `numPrograms = 20`, `numParams = 17`, `uniqueID = CaCr`, `version = 1`, `getVstVersion() = 2400`
+- The `Flags Value="1284"` field inside Live’s saved `VstPluginInfo` block is therefore not the same thing as runtime `AEffect.flags`. Matching the original binary’s real dispatcher/`AEffect` contract is a separate compatibility task from matching the `.als` XML snapshot.
+- Real Ableton `ParameterList` data for CamelCrusher includes 128 `PluginFloatParameter` nodes, but only 17 of them are named legacy parameters. The remaining 111 are blank placeholder slots and should not be treated as part of the compatibility surface.
+- The sampled 1767-byte CamelCrusher preset buffer decodes cleanly as 20 sequential program records:
+  - `float32` record marker (observed as `1.0` in current fixtures)
+  - NUL-terminated preset name
+  - `uint32` parameter count (`17` in current fixtures)
+  - 17 little-endian `float32` parameter values
+- In sampled fixtures, Ableton's explicit 17-parameter list matches the chunk program selected by the saved `ProgramNumber`. For the first Catalyst fixture instance, `ProgramNumber = 3` maps to the `British Clean` record and matches the explicit parameter values exactly.
+- The safest current import rule is:
+  - use chunk `ProgramNumber` to recover preset context and program name
+  - prefer Ableton's explicit 17-parameter list as the current parameter surface when it is present
+  - treat any mismatch between the selected chunk program and the explicit parameter list as a compatibility diagnostic worth preserving
+- The wrapper-ready core now has three useful layers:
+  - legacy parameter metadata for stable slot identity and reserved-slot handling
+  - named legacy state containers instead of raw float arrays alone
+  - preset-bank abstractions built from the decoded chunk records
+- The first modern host-facing model should expose 12 public parameters and keep the 5 `Unused*` slots preserved internally. That gives wrappers a cleaner automation surface without discarding legacy compatibility state.
+- The current modern processor is a useful integration baseline, not a parity claim. It proves that imported legacy state can drive deterministic stereo processing, but the distortion/filter/compression blocks are still placeholder implementations.
+- A thin custom public-wrapper path is viable if the shared core owns a stable state blob plus a small C-compatible bridge. That lets future wrappers stay focused on host glue instead of re-implementing import, persistence, or parameter bookkeeping.
+- The shared bridge plus `tools/modern_state_tool.py` can already convert a checked-in fixture JSON into a serialized modern state blob and inspect that blob again without any AU/VST3 SDK in the loop.
+- A first macOS `AUAudioUnit` scaffold is feasible with only the system `AudioToolbox` and `AVFoundation` SDKs. The wrapper can already expose the 12 public parameters, save/load the serialized modern state blob through `fullState`, surface imported legacy preset banks as AU factory presets, and render offline in-process.
+- A first no-UI `VST3` scaffold is also feasible as a thin wrapper around the same shared runtime. The current shape is a processor/controller split with 12 public parameters plus a program parameter that exposes `Current State` and the 20 legacy factory presets.
+- If a `VST3` controller returns `nullptr` from `createView(ViewType::kEditor)`, Ableton can still list and instantiate the plug-in but its open-editor button effectively becomes a no-op. A minimal native macOS `IPlugView` is enough to restore the expected open-window behavior.
+- Apple’s documented no-UI AUv3 extension shape maps cleanly onto this repo: a principal class conforming to `AUAudioUnitFactory`, `NSExtensionPointIdentifier = com.apple.AudioUnit`, and `AudioComponents` metadata are enough to assemble and load a bundle locally through `NSBundle` before tackling real host installation.
+- In this repo’s minimal CMake integration, the VST3 bundle on macOS needed Steinberg’s `public.sdk/source/main/macmain.cpp` added explicitly. Having only the factory source produced a bundle that linked but failed `moduleinfotool` with `Bundle does not export the required 'bundleEntry' function`.
+- In this repo’s minimal host-side validation path, Steinberg’s `sdk_hosting` target was not enough by itself for macOS bundle loading. `public.sdk/source/vst/hosting/module_mac.mm` had to be compiled into the bundle smoke target to make `VST3::Hosting::Module::create(...)` work on this machine.
+- A loose AU `.appex` is not a reliable discovery artifact by itself for local macOS testing. The more correct dev-install shape is a containing `.app` bundle with the AU extension embedded under `Contents/PlugIns/`.
+- PlugInKit rejects the embedded AU bundle if the containing app and extension are not sandboxed. The first concrete discovery error on this machine was: `Ignoring mis-configured plugin ... plug-ins must be sandboxed`.
+- For nested macOS code, the sandbox story is executable-specific. Every Mach-O that PlugInKit launches needs an entitlement-bearing signature, but an AU extension process is not the same as a generic inherited-sandbox helper. On this machine, adding `com.apple.security.inherit` to the AU extension caused a launch-time crash with `Process is not in an inherited sandbox.`
+- Real `.appex` payloads on this machine use `MH_EXECUTE`, not `MH_BUNDLE`. Matching the app-extension binary type matters for anything beyond local `NSBundle` experiments.
+- A dev-only containing app that exits immediately is probably too thin for real extension lifecycle. For AUv3 startup experiments, the container should behave like a real background macOS app, not just a zero-second stub.
+- The registered AU extension must carry its own runtime bridge dylib inside `Contents/Frameworks/`. Pointing at a build-directory `@rpath` works for local smoke tests but crashes the installed extension at launch.
+- On this machine, the user-level dev install became reliably visible to PlugInKit only after the containing app was launched once from `~/Applications`.
+- After that first registration launch, the containing app did not need to keep running. The registered AU stayed discoverable and instantiable with the host app stopped.
+- The registered out-of-process AU now instantiates successfully through `AUAudioUnit instantiateWithComponentDescription:` and exposes a full class-info-style state dictionary again, not only the custom runtime blob key.
+- The direct in-process `CamelCrusherRecalledAudioUnit` subclass can now normalize AU preset dictionaries, preserve negative-number user preset identity, and round-trip saved `.aupreset` files through an explicit user-preset directory path.
+- Unknown negative-number user presets are a real edge case for the out-of-process AU path. On this machine, making that path explicitly return an error instead of trying to read a nonexistent file was enough to stop extension crashes and get `auvaltool` fully green.
+- On this machine, `~/Library/Audio/Presets` is root-owned and not writable for new vendor directories. `tools/modern_state_tool.py` therefore needs a fallback export location, and the current fallback is `build/au-presets/`.
+- Seeding the default runtime with a decoded checked-in fixture bank is a practical middle ground for AU usability: a fresh `CamelCrusher` instance can expose the original 20 CamelCrusher factory presets before any host import flow is solved.
+- The containing app can silently drift out of sync with AU metadata if its embedded `.appex` is not rebuilt from the AU bundle stamp itself. On this machine, explicit dependency on the AU bundle stamp was necessary to prevent stale embedded metadata after the `Rebuild` rename.
+- In this repo’s Makefile-generator build, depending on the AU bundle stamp file directly from both the AU bundle target and the containing-app packaging rule created a parallel-build race. Making the containing-app packaging depend on the AU bundle utility target instead fixed `cmake --build build -j` on this machine.
+- Ableton Live was sensitive to the AUv3 rename surface on this machine. Apple tooling still validated and instantiated the AU after host-facing renames, but Live only reindexed it reliably when the component-facing name stayed vendor-prefixed and the AU bundle/component version was bumped. The current working identity is `Rivet: CamelCrusher`, version `3`.
+- A first real user-side host check matters early. Once the AU was reported to open in Ableton, the highest-value next work shifted from discovery plumbing to DSP feel and preset behavior.
+- The current shared processor is still not a parity claim, but it is no longer only a placeholder. A more deliberate distortion/filter/compressor chain is already useful for host validation and future listening comparisons.
+- The original CamelCrusher `Master` switch is a whole-plug-in bypass, not merely a “disable the master controls” toggle. Matching that behavior matters for true recall parity.
+- `CompressMode` is better treated as a switch-like `Phat` mode than as a continuous compressor-style parameter. The original manual describes it as an on/off `P` button for a more aggressive compressor flavor, not a morphing control.
+- Once the AU can both open in Ableton and pass `auvaltool`, the next bottlenecks are no longer wrapper registration bugs. They are import UX, preset behavior inside real hosts, and DSP parity.
+- The current `VST3` bundle can now be copied directly into `~/Library/Audio/Plug-Ins/VST3/CamelCrusher.vst3` for host rescans on this machine. The repo has both in-process and bundle-level smoke coverage for that path before Live is involved.
+- The current `VST3` wrapper now also has editor smoke coverage, which is important because “plug-in instantiates” and “host can open a plug-in window” are separate compatibility checkpoints.
+- The current same-identity `VST2` wrapper is now buildable and packageable as `build/CamelCrusher.vst`, and it already matches the key host-facing legacy contract:
+  - visible plug-in name `CamelCrusher`
+  - unique ID `CaCr`
+  - `17` parameters
+  - `20` programs
+  - `cEffect.version = 1`
+  - `getVstVersion() = 2400`
+  - `AEffect.flags = 57`
+  - `getPlugCategory() = 0`
+  - chunk-based state through `effFlagsProgramChunks`
+- For hosts like Ableton, a fake `HasEditor` flag is not good enough. Mirroring the original raw flag surface cleanly meant adding a real native macOS preview editor and editor smoke coverage for the `VST2` path, even before any visual CamelCrusher clone exists.
+- Manual old-set validation gets much easier if the plug-in can emit a compare-friendly snapshot of its currently loaded state. On this machine, the most practical loop is: load the old Live set, click `Copy State JSON` in the VST2 editor, save that pasted JSON to a file, and compare it against the expected fixture instance with `tools/modern_state_tool.py compare-fixture-summary`.
+- The original local CamelCrusher bundle did not expose obvious skin bitmaps or nib-based UI assets in `Contents/Resources`. For this remake, the first practical path is a hand-built AppKit recreation of the aesthetic rather than trying to recover ready-made UI art from the legacy bundle.
+- A better CamelCrusher-feeling compatibility UI comes from matching the original visible control model, not the raw compatibility schema. The 5 reserved legacy slots should stay preserved in state, but the editor should foreground only the 12 controls users actually knew: four modules, one `On` switch per module, and two labeled knobs per module.
+- For the original Windows skin assets, the important layout convention is mixed by control family:
+  - knob coordinates in `SkinParameters.txt` behave like center anchors
+  - the original `On`, `Phat`, and `Randomize` button placements also line up correctly when treated as center anchors
+  - treating those positions as top-left origins is what makes the controls drift down and right
+- The edited black/gold faceplate can be used, but only if it stays on the original CamelCrusher geometry grid. Matching canvas size alone is not enough; swapping in a visually similar background that moves panel wells or selector slots will make the controls feel wrong even when the coordinate math is correct.
+- The CamelCrusher sprite sheets are not all “bottom frame = active”:
+  - `OnButton.png`: top frame is the lit blue active state
+  - `PhatButton.png`: top frame is the lit blue `P` active state
+  - `ButtonRandom.png`: top frame is the normal gold idle state, lower frame is the pressed accent state
+- Once the control geometry was proven in an asset-only reconstruction harness, it became practical to share the same AppKit CamelCrusher surface across wrappers. The current macOS UI truth now lives in `src/shared_ui/CamelCrusherMacEditorSurface.*`, with `VST2` still carrying its own older editor implementation.
+- Slightly smaller preset-strip typography is a better fit for the CamelCrusher skin. The current shared macOS surface uses a smaller preset popup font and smaller attributed preset title than the earlier pass.
+- The `VST2` editor needs its own live `Randomize` control, not just the probe harness. Adding the original `ButtonRandom.png` as a real momentary button closed one of the visible wrapper-parity gaps.
+- When an Objective-C AU principal/view-controller class only lives inside a linked static library, the AU extension binary needs `-ObjC` or the class can be dead-stripped even though the plist names it. On this machine that produced the misleading state where the bundle metadata looked right but the extension could not actually stand up the UI/factory class at launch.
+- On this machine, splitting the AU into separate installed `com.apple.AudioUnit` and `com.apple.AudioUnit-UI` extensions was the wrong shape for real host UI. `AVAudioUnitComponentManager` could still report `hasCustomView = true`, but the actual out-of-process proxy instantiated from the non-UI extension still reported `providesUserInterface = 0`.
+- The working AU packaging shape on this machine is a single installed `com.apple.AudioUnit-UI` extension whose principal class is the shared `CamelCrusherRecalledViewController` and whose `AUAudioUnitFactory` path creates the audio unit. Once the host app embedded only that UI-bearing extension, the registered component flipped to `providesUserInterface = 1` and returned an `AUAudioUnitRemoteViewController`.
+- For AU view-controller principal classes, swallowing `beginRequestWithExtensionContext:` is a bad idea. Letting `AUViewController` keep ownership of the extension request lifecycle avoided breaking the UI-bearing extension path in this repo.
+- For the CamelCrusher-style AU panel, stretching the editor surface to fill arbitrary host bounds makes the artwork look wrong. The safer default is to keep the panel on its natural `345x373` geometry, center it in the host-provided bounds, and reject `hostHasController` view configurations so the host does not stack its own generic control surface on top.
+- For the first compatibility pass, the most useful VST2 validations are separate:
+  - in-process class/identity/chunk round-trip (`vst2_compat_smoke`)
+  - packaged bundle entry/export validation through `VSTPluginMain` (`vst2_bundle_smoke`)
+  - real Ableton old-set reopen, which is still the missing proof
+- A guarded swap script is worth having before real host tests. Replacing the original `CamelCrusher.vst` ad hoc is error-prone, so keeping a backup/restore flow is better than manual Finder moves.
+- For the AU host app installer path, PackageKit can treat a same-bundle-ID copy outside `/Applications` as a relocated installed bundle and skip reinstalling the AU component entirely. On this machine that happened when a backed-up `CamelCrusher Host.app` lived under `~/Library/Application Support/CamelCrusherRebuild/...`. The release builder now needs an explicit AU component plist with `BundleIsRelocatable = false`, `BundleIsVersionChecked = false`, and `BundleHasStrictIdentifier = false` to keep reinstall behavior sane.
+- For the AU release package, re-signing the already-signed host app bundle with `codesign --deep` during installer staging is destructive. On this machine that stripped the `com.apple.security.app-sandbox` entitlement from both `/Applications/CamelCrusher Host.app` and the embedded `CamelCrusherAUUI.appex`, which left the files on disk but prevented PlugInKit registration. Preserve the AU signature produced by the build step instead of deep re-signing the staged app bundle.
+- Live’s VST2 restore path on this machine is more path-sensitive than the compatibility wrapper alone suggests. Successful product-session restores earlier in the day used `/Users/porter/Library/Audio/Plug-Ins/VST/CamelCrusher.vst`, while fixture archaeology also shows older sets saved against `/Library/Audio/Plug-Ins/VST2/CamelCrusher.vst`. Installing only `/Library/Audio/Plug-Ins/VST/CamelCrusher.vst` was therefore not enough. The release installer now needs to create compatibility aliases for at least the current user’s `~/Library/Audio/Plug-Ins/VST/CamelCrusher.vst` plus a legacy `/Library/Audio/Plug-Ins/VST2/CamelCrusher.vst` path.
+- On this machine, moving macOS installer staging outside Dropbox was not enough to eliminate AppleDouble-style `._*` BOM entries. The repo/build trees do not contain literal `._*` files, but copied payloads still retain `com.apple.provenance`, and `pkgbuild` encodes that as receipt noise. Treat the `._*` BOM entries as an unresolved packaging-cleanliness issue rather than a solved one.
+- For public-repo readiness, extracted fixture JSONs should store a public-safe `source_file` label rather than a local Dropbox path.
+
+## Fixture Paths Already Confirmed Useful
+
+- `/Volumes/T7/Dropbox/Music/RIPPED/altare/Projects/Catalyst - Patreon/Catalyst - Patreon/Catalyst - Patreon.als`
+- `/Volumes/T7/Dropbox/Music/RIPPED/altare/Projects/Bye Rmx - Patreon (als + stems)/Bye Rmx - Patreon (als + stems)/Bye Rmx - Patreon/Bye Rmx - Patreon.als`
+
+## Working Principle
+
+- Compatibility work should begin from host-saved identity and state, then move inward toward DSP parity. The host contract is the first thing that must be preserved.

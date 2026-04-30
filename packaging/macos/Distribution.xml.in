@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+  <title>@CAMELCRUSHER_PLUGIN_NAME@</title>
+  <organization>@CAMELCRUSHER_INSTALLER_PRODUCT_IDENTIFIER@</organization>
+  <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+  <options customize="always" hostArchitectures="arm64" rootVolumeOnly="true"/>
+  <choices-outline>
+    <line choice="choice.au"/>
+    <line choice="choice.vst3"/>
+    <line choice="choice.vst2"/>
+  </choices-outline>
+  <choice id="choice.au" title="Audio Unit (AU)" description="Install the AU host app and embedded Audio Unit for Logic and Live.">
+    <pkg-ref id="@CAMELCRUSHER_INSTALLER_AU_PKG_IDENTIFIER@">camelcrusher-au.pkg</pkg-ref>
+  </choice>
+  <choice id="choice.vst3" title="VST3" description="Install the VST3 plug-in bundle.">
+    <pkg-ref id="@CAMELCRUSHER_INSTALLER_VST3_PKG_IDENTIFIER@">camelcrusher-vst3.pkg</pkg-ref>
+  </choice>
+  <choice id="choice.vst2" title="VST2" description="Install the native Apple Silicon VST2 bundle for legacy session recall.">
+    <pkg-ref id="@CAMELCRUSHER_INSTALLER_VST2_PKG_IDENTIFIER@">camelcrusher-vst2.pkg</pkg-ref>
+  </choice>
+  <pkg-ref id="@CAMELCRUSHER_INSTALLER_AU_PKG_IDENTIFIER@" version="@CAMELCRUSHER_RELEASE_VERSION@" auth="Root">camelcrusher-au.pkg</pkg-ref>
+  <pkg-ref id="@CAMELCRUSHER_INSTALLER_VST3_PKG_IDENTIFIER@" version="@CAMELCRUSHER_RELEASE_VERSION@" auth="Root">camelcrusher-vst3.pkg</pkg-ref>
+  <pkg-ref id="@CAMELCRUSHER_INSTALLER_VST2_PKG_IDENTIFIER@" version="@CAMELCRUSHER_VST2_LEGACY_VERSION_STRING@" auth="Root">camelcrusher-vst2.pkg</pkg-ref>
+</installer-gui-script>

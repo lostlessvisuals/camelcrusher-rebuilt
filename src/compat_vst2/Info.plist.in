@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>English</string>
+  <key>CFBundleExecutable</key>
+  <string>@CAMELCRUSHER_VST2_BUNDLE_NAME@</string>
+  <key>CFBundleGetInfoString</key>
+  <string>@CAMELCRUSHER_VST2_BUNDLE_NAME@ @CAMELCRUSHER_VST2_LEGACY_VERSION_STRING@, VST2 plug-in</string>
+  <key>CFBundleIdentifier</key>
+  <string>@CAMELCRUSHER_VST2_BUNDLE_IDENTIFIER@</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>@CAMELCRUSHER_VST2_BUNDLE_NAME@</string>
+  <key>CFBundlePackageType</key>
+  <string>BNDL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>@CAMELCRUSHER_VST2_LEGACY_VERSION_STRING@</string>
+  <key>CFBundleSignature</key>
+  <string>@CAMELCRUSHER_VST2_SIGNATURE@</string>
+  <key>CFBundleVersion</key>
+  <string>@CAMELCRUSHER_VST2_LEGACY_VERSION_STRING@</string>
+  <key>@CAMELCRUSHER_VST2_COMPATIBILITY_MARKER_KEY@</key>
+  <true/>
+</dict>
+</plist>

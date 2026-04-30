@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleDisplayName</key>
+  <string>@CAMELCRUSHER_AU_INFO_DISPLAY_NAME@</string>
+  <key>CFBundleExecutable</key>
+  <string>@CAMELCRUSHER_AU_BUNDLE_EXECUTABLE@</string>
+  <key>CFBundleIdentifier</key>
+  <string>@CAMELCRUSHER_AU_BUNDLE_IDENTIFIER@</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>@CAMELCRUSHER_AU_INFO_DISPLAY_NAME@</string>
+  <key>CFBundlePackageType</key>
+  <string>XPC!</string>
+  <key>CFBundleShortVersionString</key>
+  <string>@CAMELCRUSHER_AU_SHORT_VERSION@</string>
+  <key>CFBundleVersion</key>
+  <string>@CAMELCRUSHER_AU_BUILD_VERSION@</string>
+  <key>NSExtension</key>
+  <dict>
+    <key>NSExtensionAttributes</key>
+    <dict>
+      <key>NSExtensionActivationRule</key>
+      <string>TRUEPREDICATE</string>
+      <key>NSExtensionServiceRoleType</key>
+      <string>NSExtensionServiceRoleTypeEditor</string>
+      <key>AudioComponents</key>
+      <array>
+        <dict>
+          <key>description</key>
+          <string>@CAMELCRUSHER_PLUGIN_NAME@</string>
+          <key>factoryFunction</key>
+          <string>@CAMELCRUSHER_AU_FACTORY_CLASS@</string>
+          <key>manufacturer</key>
+          <string>@CAMELCRUSHER_COMPANY_CODE@</string>
+          <key>name</key>
+          <string>@CAMELCRUSHER_COMPONENT_DISPLAY_NAME@</string>
+          <key>sandboxSafe</key>
+          <true/>
+          <key>subtype</key>
+          <string>@CAMELCRUSHER_AU_COMPONENT_SUBTYPE@</string>
+          <key>tags</key>
+          <array>
+            <string>Effects</string>
+            <string>Distortion</string>
+            <string>Dynamics Processor</string>
+          </array>
+          <key>type</key>
+          <string>@CAMELCRUSHER_AU_COMPONENT_TYPE@</string>
+          <key>version</key>
+          <integer>@CAMELCRUSHER_AU_COMPONENT_VERSION@</integer>
+        </dict>
+      </array>
+    </dict>
+    <key>NSExtensionPointIdentifier</key>
+    <string>@CAMELCRUSHER_AU_EXTENSION_POINT_IDENTIFIER@</string>
+    <key>NSExtensionPrincipalClass</key>
+    <string>@CAMELCRUSHER_AU_PRINCIPAL_CLASS@</string>
+  </dict>
+</dict>
+</plist>

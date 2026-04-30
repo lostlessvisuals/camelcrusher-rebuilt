@@ -1,0 +1,8 @@
+/build/
+/build-release/
+/release/
+/open-source-export/
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
