@@ -43,3 +43,7 @@ ctest --test-dir build --output-on-failure
 - Engineering details: [docs/ENGINEERING_GUIDE.md](docs/ENGINEERING_GUIDE.md)
 - Release/install notes: [docs/RELEASE_GUIDE.md](docs/RELEASE_GUIDE.md)
 - Current project continuity: [docs/CURRENT_HANDOFF.md](docs/CURRENT_HANDOFF.md)
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).
