@@ -12,7 +12,7 @@ It currently targets:
 - `VST2`
 - `VST3`
 
-`VST2` is the compatibility path for reopening previous sessions that used CamelCrusher. The current host-facing plug-in name is still `CamelCrusher`.
+The current host-facing plug-in name is still `CamelCrusher`.
 
 ## Download
 
