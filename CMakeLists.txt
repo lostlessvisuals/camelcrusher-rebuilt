@@ -1042,6 +1042,33 @@ if(APPLE)
     )
 
     target_compile_options(modern_au_component_instantiate PRIVATE "-fobjc-arc")
+
+    add_executable(render_mac_editor_preview
+        tools/render_mac_editor_preview.mm
+        src/shared_ui/CamelCrusherMacEditorSurface.mm
+    )
+
+    target_include_directories(render_mac_editor_preview
+        PRIVATE
+            include
+            src/core
+            src/shared_ui
+    )
+
+    target_link_libraries(render_mac_editor_preview
+        PRIVATE
+            camelcrusher_core
+            ${FOUNDATION_FRAMEWORK}
+            ${APPKIT_FRAMEWORK}
+    )
+
+    target_compile_definitions(render_mac_editor_preview
+        PRIVATE
+            CAMELCRUSHER_RECALLED_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+            CAMELCRUSHER_BRAND_URL="${CAMELCRUSHER_SUPPORT_URL}"
+    )
+
+    target_compile_options(render_mac_editor_preview PRIVATE "-fobjc-arc")
 endif()
 
 find_package(Python3 COMPONENTS Interpreter)

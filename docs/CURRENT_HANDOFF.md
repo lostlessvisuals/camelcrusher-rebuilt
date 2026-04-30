@@ -45,6 +45,9 @@
   - a customizable installer with per-format choices
   - an `Uninstall CamelCrusher.command` helper
 - The repo now also has a GitHub-export helper in `tools/prepare_github_export.sh` that keeps the public export close to the local source tree while excluding generated outputs and the archived original vendor distribution.
+- The GitHub export is no longer just staged locally: `open-source-export/camelcrusher-rebuilt` was initialized as a clean repo and published at `https://github.com/lostlessvisuals/camelcrusher-rebuilt`.
+  - The published repo currently includes the UI preview image at `docs/assets/camelcrusher-ui-preview.png` in the top-level README.
+  - The public repo description is: `Native Apple Silicon remake of CamelCrusher for macOS, with AU, VST2, and VST3 builds, plus a VST2 compatibility path for reopening older projects.`
 - The project is grounded in inspected Ableton `.als` fixtures from `/Volumes/T7/Dropbox/Music/RIPPED/altare/Projects`.
 - Verified legacy Live references use `VST2` CamelCrusher at `/Library/Audio/Plug-Ins/VST2/CamelCrusher.vst`.
 - Verified legacy `VST2` identity in inspected sets:
@@ -178,6 +181,7 @@
 - `ctest --test-dir build --output-on-failure` passes locally with `18/18`.
 - `tools/build_macos_release.sh` now passes end to end again after the `VST2` naming cleanup, regenerating `release/CamelCrusher-Rebuilt-0.7.0-macOS/Install CamelCrusher.pkg` with AU/VST2/VST3 choices and refreshed staged payloads.
 - `tools/prepare_github_export.sh` now regenerates `open-source-export/camelcrusher-rebuilt` without any remaining `private_vst2` source/docs references.
+- The GitHub repo `lostlessvisuals/camelcrusher-rebuilt` is now live and currently matches the exported tree head at commit `421373e` (`Vendor VST3 SDK contents`).
 - A fresh scratch build at `/tmp/camelcrusher-recalled-fresh-build` now proves the default repo configure path uses `third_party/vst2sdk` instead of a machine-local Downloads checkout, and that scratch tree also passes `18/18` tests.
 - Installer validation now has a clearer status:
   - `installer -showChoicesXML -pkg ... -target /` reports the expected AU/VST2/VST3 selectable choices
@@ -197,11 +201,10 @@
   - Render old-vs-new audio references once a prototype exists.
 
 ## Next Steps
-1. On this machine, restart Live or force a VST2 rescan so the plugin DB picks up the restored user-path `CamelCrusher.vst` alias again; without that, old sets can still fail even though the file path now exists.
-2. After that, confirm at least one previously failing old set resolves `CamelCrusher` again from the installed product path, not only from the dev swap flow.
-3. Keep shifting the main implementation effort toward deeper DSP feel and audio-reference comparisons.
-4. Keep expanding real old-set coverage beyond the first confirmed Catalyst instance so `VST2` recall confidence stops depending on a single project.
-5. After that, tackle code-signing/notarization polish for a cleaner shipping story.
+1. Keep shifting the main implementation effort toward deeper DSP feel and audio-reference comparisons.
+2. Keep expanding real old-set coverage beyond the first confirmed Catalyst instance so `VST2` recall confidence stops depending on a single project.
+3. Decide whether the current public GitHub state should stay unsigned/dev-friendly or whether a signed/notarized public release is worth the extra macOS distribution work.
+4. After that, cut the first intentional GitHub release from the already-published repo instead of continuing to treat the export as pre-public.
 
 ## Risks Or Blockers
 - Public VST2 support still needs wider install and host validation beyond this machine.
