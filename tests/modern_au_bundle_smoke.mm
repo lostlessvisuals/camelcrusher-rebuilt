@@ -45,13 +45,13 @@ int main() {
     assert(components.count == 1U);
     NSDictionary* component = components.firstObject;
     assert([component[@"description"] isEqualToString:@"CamelCrusher"]);
-    assert([component[@"manufacturer"] isEqualToString:@"RvFx"]);
+    assert([component[@"manufacturer"] isEqualToString:@"CmAu"]);
     assert([component[@"factoryFunction"]
         isEqualToString:@"CamelCrusherRecalledViewController"]);
-    assert([component[@"name"] isEqualToString:@"Rivet: CamelCrusher"]);
+    assert([component[@"name"] isEqualToString:@"Camel Audio: CamelCrusher"]);
     assert([component[@"subtype"] isEqualToString:@"CcrR"]);
     assert([component[@"type"] isEqualToString:@"aufx"]);
-    assert([component[@"version"] isEqual:@7]);
+    assert([component[@"version"] isEqual:@8]);
 
     NSString* executable_path = [bundle_path
         stringByAppendingPathComponent:@"Contents/MacOS/CamelCrusherAU"];

@@ -162,7 +162,7 @@ class ModernStateToolTests(unittest.TestCase):
             payload = plistlib.loads(preset_path.read_bytes())
             self.assertEqual(payload["type"], int.from_bytes(b"aufx", "big"))
             self.assertEqual(payload["subtype"], int.from_bytes(b"CcrR", "big"))
-            self.assertEqual(payload["manufacturer"], int.from_bytes(b"RvFx", "big"))
+            self.assertEqual(payload["manufacturer"], int.from_bytes(b"CmAu", "big"))
             self.assertEqual(payload["name"], "British Clean Import")
             self.assertEqual(payload["preset-number"], -77)
             self.assertEqual(payload["data"], state_path.read_bytes())

@@ -48,6 +48,12 @@
 - The GitHub export is no longer just staged locally: `open-source-export/camelcrusher-rebuilt` was initialized as a clean repo and published at `https://github.com/lostlessvisuals/camelcrusher-rebuilt`.
   - The published repo currently includes the UI preview image at `docs/assets/camelcrusher-ui-preview.png` in the top-level README.
   - The public repo description is: `Native Apple Silicon remake of CamelCrusher for macOS, with AU, VST2, and VST3 builds, plus a VST2 compatibility path for reopening older projects.`
+- The public repo landing page was tightened after publish:
+  - `README.md` is now a short high-level landing page instead of an engineering dump.
+  - `docs/assets/camelcrusher-ui-preview.png` is now generated from the live shared macOS UI surface via `tools/render_mac_editor_preview.mm`, so the published screenshot includes the corrected button layout and visible `Randomize` button.
+  - The repo now exposes a direct downloadable installer at `downloads/CamelCrusher-Rebuilt-0.7.0.pkg`.
+  - The first public release page is now live at `https://github.com/lostlessvisuals/camelcrusher-rebuilt/releases/tag/v0.7.0`.
+  - The public repo no longer includes the `reference/` tree; `tools/prepare_github_export.sh` now excludes it entirely, and `main` removed the previously published reference assets at commit `e794d3c` (`Remove reference folder from public export`).
 - The project is grounded in inspected Ableton `.als` fixtures from `/Volumes/T7/Dropbox/Music/RIPPED/altare/Projects`.
 - Verified legacy Live references use `VST2` CamelCrusher at `/Library/Audio/Plug-Ins/VST2/CamelCrusher.vst`.
 - Verified legacy `VST2` identity in inspected sets:
@@ -86,7 +92,7 @@
   Why it matters: this is the stable workspace for future engineering and handoff.
 - Decision: keep the remake/project name separate from the actual plug-in name.
   Why it matters: the project can still be discussed as `CamelCrusher Rebuilt`, while the installed AU/VST name stays `CamelCrusher` to minimize host-integration surprises.
-- Decision: keep the AUv3 component-facing name vendor-prefixed as `Rivet: CamelCrusher`.
+- Decision: keep the AUv3 component-facing name vendor-prefixed as `Camel Audio: CamelCrusher`.
   Why it matters: on this machine Ableton resumed indexing the AU reliably only after the component-facing name kept the vendor prefix and the AU version was bumped.
 - Decision: install the AU as a single `com.apple.AudioUnit-UI` extension inside the host app.
   Why it matters: that is the packaging shape that now produces a real out-of-process custom view on this machine instead of a generic host surface.
@@ -164,7 +170,7 @@
   - Added `modern_au_component_probe`, `modern_au_component_instantiate`, `modern_au_view_probe`, and `tools/install_dev_au_host_app.sh` so local developer installs can check discovery, out-of-process instantiation, and the real custom-view handoff without relying on noisy `auval -a` output.
 - Verified the dev containing app can be installed into `~/Applications/CamelCrusher Host.app`, surfaced by `pluginkit`, found by `AudioComponentFindNext`, and instantiated through `AUAudioUnit instantiateWithComponentDescription:` on this machine once the app is launched once after install.
   - Verified the registered out-of-process AU now reports `providesUserInterface = 1`, returns `AUAudioUnitRemoteViewController`, and captures a real custom-view path through `modern_au_view_probe`.
-  - Verified `auvaltool -v aufx CcrR RvFx` now succeeds end to end: class info, factory presets, parameter retention, format negotiation, render tests, and parameter scheduling all pass locally.
+  - Verified `auvaltool -v aufx CcrR CmAu` now succeeds end to end: class info, factory presets, parameter retention, format negotiation, render tests, and parameter scheduling all pass locally.
   - Added `.aupreset` export to `tools/modern_state_tool.py`, so checked-in fixture JSON can now become a host-loadable AU preset artifact without any extra machine-local SDK code.
   - Added in-process user-preset coverage to `CamelCrusherRecalledAudioUnit`, including normalized AU preset dictionaries, explicit user-preset directory handling, and negative-number preset round-trips in `modern_au_smoke`.
   - Generated a real manual-load preset artifact at `build/au-presets/Catalyst British Clean.aupreset` from the Catalyst fixture because the standard user preset folder is not writable on this machine.
@@ -182,6 +188,9 @@
 - `tools/build_macos_release.sh` now passes end to end again after the `VST2` naming cleanup, regenerating `release/CamelCrusher-Rebuilt-0.7.0-macOS/Install CamelCrusher.pkg` with AU/VST2/VST3 choices and refreshed staged payloads.
 - `tools/prepare_github_export.sh` now regenerates `open-source-export/camelcrusher-rebuilt` without any remaining `private_vst2` source/docs references.
 - The GitHub repo `lostlessvisuals/camelcrusher-rebuilt` is now live and currently matches the exported tree head at commit `421373e` (`Vendor VST3 SDK contents`).
+- The published repo has moved beyond the initial publish:
+  - `main` now includes the shorter README, regenerated screenshot, preview-render helper, and direct installer download at commit `c890b12` (`Add direct installer download`).
+  - The public release page `v0.7.0` exists and points people at the direct installer URL even though the release assets themselves still only show GitHub’s auto-generated source archives.
 - A fresh scratch build at `/tmp/camelcrusher-recalled-fresh-build` now proves the default repo configure path uses `third_party/vst2sdk` instead of a machine-local Downloads checkout, and that scratch tree also passes `18/18` tests.
 - Installer validation now has a clearer status:
   - `installer -showChoicesXML -pkg ... -target /` reports the expected AU/VST2/VST3 selectable choices
@@ -203,8 +212,8 @@
 ## Next Steps
 1. Keep shifting the main implementation effort toward deeper DSP feel and audio-reference comparisons.
 2. Keep expanding real old-set coverage beyond the first confirmed Catalyst instance so `VST2` recall confidence stops depending on a single project.
-3. Decide whether the current public GitHub state should stay unsigned/dev-friendly or whether a signed/notarized public release is worth the extra macOS distribution work.
-4. After that, cut the first intentional GitHub release from the already-published repo instead of continuing to treat the export as pre-public.
+3. Decide whether the repo-backed installer download is sufficient for now or whether a future pass should upload the `.pkg` as a first-class GitHub Release asset instead of linking to `downloads/`.
+4. Decide whether the current public GitHub state should stay unsigned/dev-friendly or whether a signed/notarized public release is worth the extra macOS distribution work.
 
 ## Risks Or Blockers
 - Public VST2 support still needs wider install and host validation beyond this machine.
@@ -216,7 +225,7 @@
 - The new `VST3` wrapper is now built, smoke-tested, installed locally, and has a native preview editor, but it still needs a fresh real Ableton open-window validation on this machine after reinstall.
 - The local install workflow currently depends on launching the containing app once after install so PlugInKit exposes the AU consistently on this machine.
 - The rebuilt installer should stop skipping the AU host app when a same-bundle-ID backup exists elsewhere, but that still needs one fresh post-fix GUI install confirmation.
-- On this machine, `~/Library/Audio/Presets` is root-owned and not writable for new vendor directories, so the default manual-import artifact path currently falls back to `build/au-presets/` instead of `~/Library/Audio/Presets/Rivet/CamelCrusher`.
+- On this machine, `~/Library/Audio/Presets` is root-owned and not writable for new vendor directories, so the default manual-import artifact path currently falls back to `build/au-presets/` instead of `~/Library/Audio/Presets/Camel Audio/CamelCrusher`.
 - Installer BOMs still carry AppleDouble-style `._*` receipt entries because `pkgbuild` is encoding surviving `com.apple.provenance` metadata from copied payload files, even though the actual repo/build trees do not contain literal `._*` files.
 - Exact sound parity may take much longer than session-state parity.
 

@@ -10,8 +10,8 @@
 #else
 #define stringFileDescription "CamelCrusher VST3"
 #endif
-#define stringCompanyName "Rivet"
+#define stringCompanyName "Camel Audio"
 #define stringCompanyWeb ""
 #define stringCompanyEmail ""
-#define stringLegalCopyright "© 2026 Rivet"
+#define stringLegalCopyright "© 2026 Camel Audio"
 #define stringLegalTrademarks "VST is a trademark of Steinberg Media Technologies GmbH"

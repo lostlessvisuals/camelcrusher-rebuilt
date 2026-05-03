@@ -24,9 +24,9 @@ VALUE_KIND_NAMES = {
 }
 AU_PRESET_COMPONENT_TYPE = int.from_bytes(b"aufx", "big")
 AU_PRESET_COMPONENT_SUBTYPE = int.from_bytes(b"CcrR", "big")
-AU_PRESET_COMPONENT_MANUFACTURER = int.from_bytes(b"RvFx", "big")
+AU_PRESET_COMPONENT_MANUFACTURER = int.from_bytes(b"CmAu", "big")
 AU_PRESET_VERSION = 3
-AU_PRESET_MANUFACTURER_NAME = "Rivet"
+AU_PRESET_MANUFACTURER_NAME = "Camel Audio"
 AU_PRESET_PLUGIN_NAME = "CamelCrusher"
 LEGACY_PARAMETER_LAYOUT = (
     ("DistOn", "switch_like"),

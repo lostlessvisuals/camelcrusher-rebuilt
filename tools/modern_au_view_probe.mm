@@ -59,7 +59,7 @@ Arguments parseArguments(int argc, char* argv[]) {
   AudioComponentDescription description{};
   description.componentType = kAudioUnitType_Effect;
   description.componentSubType = fourCC('C', 'c', 'r', 'R');
-  description.componentManufacturer = fourCC('R', 'v', 'F', 'x');
+  description.componentManufacturer = fourCC('C', 'm', 'A', 'u');
 
   if (!self.arguments.quiet) {
     std::puts("Instantiating CamelCrusher AU...");

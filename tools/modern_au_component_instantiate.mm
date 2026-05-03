@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
     AudioComponentDescription description{};
     description.componentType = kAudioUnitType_Effect;
     description.componentSubType = fourCC('C', 'c', 'r', 'R');
-    description.componentManufacturer = fourCC('R', 'v', 'F', 'x');
+    description.componentManufacturer = fourCC('C', 'm', 'A', 'u');
 
     dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
     __block AUAudioUnit* instantiated_unit = nil;

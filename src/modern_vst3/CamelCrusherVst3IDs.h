@@ -7,7 +7,7 @@ namespace camelcrusher_recalled::vst3 {
 
 inline constexpr char kCamelCrusherPluginName[] = "CamelCrusher";
 inline constexpr char kCamelCrusherControllerName[] = "CamelCrusher Controller";
-inline constexpr char kCamelCrusherPluginVendor[] = "Rivet";
+inline constexpr char kCamelCrusherPluginVendor[] = "Camel Audio";
 inline constexpr char kCamelCrusherPluginSubcategories[] =
     "Fx|Distortion|Dynamics|Filter";
 

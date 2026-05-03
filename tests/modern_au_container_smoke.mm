@@ -59,8 +59,8 @@ int main() {
     assert([component[@"description"] isEqualToString:@"CamelCrusher"]);
     assert([component[@"factoryFunction"]
         isEqualToString:@"CamelCrusherRecalledViewController"]);
-    assert([component[@"name"] isEqualToString:@"Rivet: CamelCrusher"]);
-    assert([component[@"version"] isEqual:@7]);
+    assert([component[@"name"] isEqualToString:@"Camel Audio: CamelCrusher"]);
+    assert([component[@"version"] isEqual:@8]);
 
     NSString* executable_path = [embedded_bundle_path
         stringByAppendingPathComponent:@"Contents/MacOS/CamelCrusherAU"];

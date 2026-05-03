@@ -9,7 +9,7 @@
 #include <algorithm>
 
 #ifndef CAMELCRUSHER_AU_COMPONENT_VERSION_INT
-#define CAMELCRUSHER_AU_COMPONENT_VERSION_INT 7
+#define CAMELCRUSHER_AU_COMPONENT_VERSION_INT 8
 #endif
 
 NSString* const CamelCrusherRecalledAUStateBlobKey =
@@ -162,7 +162,7 @@ NSString* configuredUserPresetDirectoryPath() {
   }
   return [NSHomeDirectory()
       stringByAppendingPathComponent:
-          @"Library/Audio/Presets/Rivet/CamelCrusher"];
+          @"Library/Audio/Presets/Camel Audio/CamelCrusher"];
 }
 
 NSString* sanitizedPresetFilename(NSString* name) {
@@ -323,7 +323,7 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
   AudioComponentDescription description{};
   description.componentType = kAudioUnitType_Effect;
   description.componentSubType = fourCC('C', 'c', 'r', 'R');
-  description.componentManufacturer = fourCC('R', 'v', 'F', 'x');
+  description.componentManufacturer = fourCC('C', 'm', 'A', 'u');
   description.componentFlags = 0;
   description.componentFlagsMask = 0;
   return description;
@@ -334,7 +334,7 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
   dispatch_once(&once_token, ^{
     [AUAudioUnit registerSubclass:self
            asComponentDescription:self.componentDescription
-                             name:@"Rivet: CamelCrusher"
+                             name:@"Camel Audio: CamelCrusher"
                           version:CAMELCRUSHER_AU_COMPONENT_VERSION_INT];
   });
 }

@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
     AudioComponentDescription description{};
     description.componentType = kAudioUnitType_Effect;
     description.componentSubType = fourCC('C', 'c', 'r', 'R');
-    description.componentManufacturer = fourCC('R', 'v', 'F', 'x');
+    description.componentManufacturer = fourCC('C', 'm', 'A', 'u');
 
     AudioComponent component = AudioComponentFindNext(nullptr, &description);
     if (component == nullptr) {
