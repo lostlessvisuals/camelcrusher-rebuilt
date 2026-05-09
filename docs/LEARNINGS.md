@@ -82,6 +82,10 @@
 - Ableton Live was sensitive to the AUv3 rename surface on this machine. Apple tooling still validated and instantiated the AU after host-facing renames, but Live only reindexed it reliably when the component-facing name stayed vendor-prefixed and the AU bundle/component version was bumped. The current working identity is `Camel Audio: CamelCrusher`, version `8`.
 - A first real user-side host check matters early. Once the AU was reported to open in Ableton, the highest-value next work shifted from discovery plumbing to DSP feel and preset behavior.
 - The current shared processor is still not a parity claim, but it is no longer only a placeholder. A more deliberate distortion/filter/compressor chain is already useful for host validation and future listening comparisons.
+- When a host-side stereo bug is suspected, test the shared processor separately before changing DSP. On this repo, right-only probes through the core kept the signal on the right, and the real risks were wrapper buffer assumptions instead:
+  - `AU` needed explicit support for both deinterleaved stereo and one-buffer interleaved stereo render layouts
+  - `VST3` needed to guard mono-input/stereo-output cases instead of reading channel 2 unconditionally
+  - Objective-C blocks in AU tests capture C++ containers by value unless handled carefully, which can create false routing regressions if a reused pull block is expected to see later vector mutations
 - The original CamelCrusher `Master` switch is a whole-plug-in bypass, not merely a “disable the master controls” toggle. Matching that behavior matters for true recall parity.
 - `CompressMode` is better treated as a switch-like `Phat` mode than as a continuous compressor-style parameter. The original manual describes it as an on/off `P` button for a more aggressive compressor flavor, not a morphing control.
 - Once the AU can both open in Ableton and pass `auvaltool`, the next bottlenecks are no longer wrapper registration bugs. They are import UX, preset behavior inside real hosts, and DSP parity.

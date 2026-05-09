@@ -182,14 +182,99 @@ int main() {
   assert(peakMagnitude(output_left) <= 1.0F);
   assert(peakMagnitude(output_right) <= 1.0F);
 
+  ModernPluginState dry_state = makeDefaultModernPluginState();
+  dry_state.state.master_on = 1.0F;
+  dry_state.state.master_mix = 1.0F;
+  dry_state.state.master_volume = 0.5F;
+  const auto dry_state_bytes = serializeModernPluginState(dry_state);
+  Steinberg::MemoryStream dry_stream;
+  writeWrappedState(dry_stream, dry_state_bytes);
+  assert(processor->setState(&dry_stream) == Steinberg::kResultOk);
+  assert(processor->setActive(false) == Steinberg::kResultOk);
+  assert(processor->setActive(true) == Steinberg::kResultOk);
+
+  std::vector<float> right_only_left(8, 0.0F);
+  std::vector<float> right_only_right(8, 0.0F);
+  right_only_right[0] = 0.65F;
+  std::vector<float> right_only_out_left = right_only_left;
+  std::vector<float> right_only_out_right = right_only_right;
+
+  float* right_only_input_channels[2] = {
+      right_only_left.data(),
+      right_only_right.data(),
+  };
+  float* right_only_output_channels[2] = {
+      right_only_out_left.data(),
+      right_only_out_right.data(),
+  };
+
+  Steinberg::Vst::AudioBusBuffers right_only_inputs{};
+  right_only_inputs.numChannels = 2;
+  right_only_inputs.silenceFlags = 0;
+  right_only_inputs.channelBuffers32 = right_only_input_channels;
+
+  Steinberg::Vst::AudioBusBuffers right_only_outputs{};
+  right_only_outputs.numChannels = 2;
+  right_only_outputs.silenceFlags = 0;
+  right_only_outputs.channelBuffers32 = right_only_output_channels;
+
+  Steinberg::Vst::ProcessData right_only_process{};
+  right_only_process.processMode = Steinberg::Vst::kRealtime;
+  right_only_process.symbolicSampleSize = Steinberg::Vst::kSample32;
+  right_only_process.numSamples = 8;
+  right_only_process.numInputs = 1;
+  right_only_process.numOutputs = 1;
+  right_only_process.inputs = &right_only_inputs;
+  right_only_process.outputs = &right_only_outputs;
+
+  assert(processor->process(right_only_process) == Steinberg::kResultOk);
+  assert(nearlyEqual(right_only_out_left[0], 0.0, 0.000001));
+  assert(nearlyEqual(right_only_out_right[0], 0.65, 0.000001));
+
+  std::vector<float> mono_input(8, 0.0F);
+  mono_input[0] = 0.37F;
+  std::vector<float> mono_out_left(8, 0.0F);
+  std::vector<float> mono_out_right(8, 0.0F);
+  float* mono_input_channels[1] = {mono_input.data()};
+  float* mono_output_channels[2] = {
+      mono_out_left.data(),
+      mono_out_right.data(),
+  };
+
+  Steinberg::Vst::AudioBusBuffers mono_inputs{};
+  mono_inputs.numChannels = 1;
+  mono_inputs.silenceFlags = 0;
+  mono_inputs.channelBuffers32 = mono_input_channels;
+
+  Steinberg::Vst::AudioBusBuffers mono_outputs{};
+  mono_outputs.numChannels = 2;
+  mono_outputs.silenceFlags = 0;
+  mono_outputs.channelBuffers32 = mono_output_channels;
+
+  Steinberg::Vst::ProcessData mono_process{};
+  mono_process.processMode = Steinberg::Vst::kRealtime;
+  mono_process.symbolicSampleSize = Steinberg::Vst::kSample32;
+  mono_process.numSamples = 8;
+  mono_process.numInputs = 1;
+  mono_process.numOutputs = 1;
+  mono_process.inputs = &mono_inputs;
+  mono_process.outputs = &mono_outputs;
+
+  assert(processor->process(mono_process) == Steinberg::kResultOk);
+  assert(nearlyEqual(mono_out_left[0], 0.37, 0.000001));
+  assert(nearlyEqual(mono_out_right[0], 0.37, 0.000001));
+
   Steinberg::MemoryStream saved_state;
   assert(processor->getState(&saved_state) == Steinberg::kResultOk);
   Steinberg::int64 reset = 0;
   assert(saved_state.seek(0, Steinberg::IBStream::kIBSeekSet, &reset) ==
          Steinberg::kResultOk);
   assert(controller->setComponentState(&saved_state) == Steinberg::kResultOk);
+  const auto expected_dry_public =
+      modernPublicParameterArrayFromState(dry_state.state);
   for (Steinberg::int32 index = 0; index < 12; ++index) {
-    assert(nearlyEqual(controller->getParamNormalized(index), expected_public[index]));
+    assert(nearlyEqual(controller->getParamNormalized(index),
+                       expected_dry_public[index]));
   }
 
   processor->setActive(false);

@@ -55,6 +55,10 @@ struct StereoBufferList {
   AudioBuffer second;
 };
 
+struct InterleavedStereoBufferList {
+  AudioBufferList list;
+};
+
 }  // namespace
 
 int main() {
@@ -270,6 +274,73 @@ int main() {
     assert(!nearlyEqual(output_right[0], 0.7F));
     assert(peakMagnitude(output_left) <= 1.0F);
     assert(peakMagnitude(output_right) <= 1.0F);
+
+    [unit reset];
+    std::fill(input_left.begin(), input_left.end(), 0.0F);
+    std::fill(input_right.begin(), input_right.end(), 0.0F);
+    std::fill(output_left.begin(), output_left.end(), 0.0F);
+    std::fill(output_right.begin(), output_right.end(), 0.0F);
+    input_right[0] = 0.65F;
+    input_right[2] = -0.30F;
+    AURenderPullInputBlock right_only_pull_input =
+        ^AUAudioUnitStatus(AudioUnitRenderActionFlags* action_flags,
+                           const AudioTimeStamp* pull_timestamp,
+                           AUAudioFrameCount frame_count,
+                           NSInteger input_bus_number,
+                           AudioBufferList* input_data) {
+          (void)action_flags;
+          (void)pull_timestamp;
+          (void)input_bus_number;
+          std::memcpy(input_data->mBuffers[0].mData, input_left.data(),
+                      frame_count * sizeof(float));
+          std::memcpy(input_data->mBuffers[1].mData, input_right.data(),
+                      frame_count * sizeof(float));
+          return noErr;
+        };
+
+    const auto right_only_status = render(&flags, &timestamp, 16, 0,
+                                          &output.list, right_only_pull_input);
+    assert(right_only_status == noErr);
+    assert(nearlyEqual(output_left[0], 0.0F, 0.000001F));
+    assert(nearlyEqual(output_left[2], 0.0F, 0.000001F));
+    assert(!nearlyEqual(output_right[0], 0.0F));
+    assert(!nearlyEqual(output_right[2], 0.0F));
+
+    [unit reset];
+    std::vector<float> interleaved_input(32, 0.0F);
+    std::vector<float> interleaved_output(32, 0.0F);
+    interleaved_input[1] = 0.65F;
+    interleaved_input[5] = -0.30F;
+
+    InterleavedStereoBufferList interleaved{};
+    interleaved.list.mNumberBuffers = 1;
+    interleaved.list.mBuffers[0].mNumberChannels = 2;
+    interleaved.list.mBuffers[0].mDataByteSize =
+        static_cast<UInt32>(interleaved_output.size() * sizeof(float));
+    interleaved.list.mBuffers[0].mData = interleaved_output.data();
+
+    AURenderPullInputBlock interleaved_pull_input =
+        ^AUAudioUnitStatus(AudioUnitRenderActionFlags* action_flags,
+                           const AudioTimeStamp* pull_timestamp,
+                           AUAudioFrameCount frame_count,
+                           NSInteger input_bus_number,
+                           AudioBufferList* input_data) {
+          (void)action_flags;
+          (void)pull_timestamp;
+          (void)input_bus_number;
+          std::memcpy(input_data->mBuffers[0].mData, interleaved_input.data(),
+                      frame_count * 2 * sizeof(float));
+          return noErr;
+        };
+
+    const auto interleaved_status =
+        render(&flags, &timestamp, 16, 0, &interleaved.list,
+               interleaved_pull_input);
+    assert(interleaved_status == noErr);
+    assert(nearlyEqual(interleaved_output[0], 0.0F, 0.000001F));
+    assert(!nearlyEqual(interleaved_output[1], 0.0F));
+    assert(nearlyEqual(interleaved_output[4], 0.0F, 0.000001F));
+    assert(!nearlyEqual(interleaved_output[5], 0.0F));
 
     [unit deallocateRenderResources];
   }

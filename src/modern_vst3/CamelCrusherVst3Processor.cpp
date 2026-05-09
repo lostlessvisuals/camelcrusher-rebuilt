@@ -107,6 +107,12 @@ Steinberg::tresult PLUGIN_API CamelCrusherVst3Processor::process(
 
   const auto sample_count = static_cast<std::size_t>(data.numSamples);
 
+  if (input.channelBuffers32 == nullptr || output.channelBuffers32 == nullptr ||
+      input.channelBuffers32[0] == nullptr ||
+      output.channelBuffers32[0] == nullptr) {
+    return Steinberg::kResultFalse;
+  }
+
   auto* left_out = output.channelBuffers32[0];
   if (input.channelBuffers32[0] != left_out) {
     std::memcpy(left_out, input.channelBuffers32[0], sample_count * sizeof(float));
@@ -115,12 +121,17 @@ Steinberg::tresult PLUGIN_API CamelCrusherVst3Processor::process(
   std::span<float> left(left_out, sample_count);
   std::span<float> right;
 
-  if (output.numChannels > 1) {
+  const auto has_stereo_output =
+      output.numChannels > 1 && output.channelBuffers32[1] != nullptr;
+  const auto has_stereo_input =
+      input.numChannels > 1 && input.channelBuffers32[1] != nullptr;
+
+  if (has_stereo_output) {
     auto* right_out = output.channelBuffers32[1];
-    if (input.channelBuffers32[1] != right_out) {
-      std::memcpy(right_out,
-                  input.channelBuffers32[1],
-                  sample_count * sizeof(float));
+    const auto* right_in =
+        has_stereo_input ? input.channelBuffers32[1] : input.channelBuffers32[0];
+    if (right_in != right_out) {
+      std::memcpy(right_out, right_in, sample_count * sizeof(float));
     }
     right = std::span<float>(right_out, sample_count);
   }

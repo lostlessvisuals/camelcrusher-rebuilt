@@ -82,6 +82,11 @@
 - Verified the shared processor now matches two more important CamelCrusher behaviors:
   - `Master On` off now bypasses the whole plug-in instead of only disabling the output controls
   - the compressor `P` control now behaves like a switch-style `Phat` mode with a more aggressive voice, not like a generic continuous “mode” blend
+- Verified the recent “left-lane mono” suspicion was not reproduced in the shared DSP core. The real hardening work landed in the wrappers and tests:
+  - `ModernProcessor`, `VST2`, `VST3`, and `AU` now all have asymmetric stereo regression coverage
+  - the `VST3` processor now safely handles mono-input/stereo-output host layouts instead of assuming channel 2 always exists
+  - the `AU` render block now handles both deinterleaved stereo buffers and one-buffer interleaved stereo buffers
+  - the first failing AU regression was a false alarm caused by Objective-C block capture semantics in the test, not by the runtime path itself
 - A user-side manual check has now confirmed that the current AU opens in Ableton Live on this machine.
 - The remake/project name is still `CamelCrusher Rebuilt`, while the current host-facing plug-in name has been moved back to `CamelCrusher`. The workspace path and bundle identifiers still retain `camelcrusher-recalled` for continuity during active development.
 - Ableton rename lesson from April 29, 2026: Live was sensitive to AUv3 host-facing rename changes on this machine. After moving away from `CamelCrusher Rebuilt` again, the safe path is to keep the AU component-facing identity vendor-prefixed and bump the bundle/component version each time that host-facing identity changes.

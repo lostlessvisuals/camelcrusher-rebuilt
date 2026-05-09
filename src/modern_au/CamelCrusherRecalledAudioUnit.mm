@@ -7,6 +7,7 @@
 #import <AVFoundation/AVFoundation.h>
 
 #include <algorithm>
+#include <vector>
 
 #ifndef CAMELCRUSHER_AU_COMPONENT_VERSION_INT
 #define CAMELCRUSHER_AU_COMPONENT_VERSION_INT 8
@@ -306,6 +307,8 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
   NSArray<AUAudioUnitPreset*>* _factoryPresets;
   AUAudioUnitPreset* _currentUserPreset;
   CamelCrusherRecalledViewController* _viewController;
+  std::vector<float> _interleavedScratchLeft;
+  std::vector<float> _interleavedScratchRight;
 }
 
 - (AUParameterTree*)buildParameterTree;
@@ -473,8 +476,8 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
   if (![super shouldChangeToFormat:format forBus:bus]) {
     return NO;
   }
-  return format.channelCount == 2 && format.commonFormat == AVAudioPCMFormatFloat32 &&
-         !format.interleaved;
+  return format.channelCount == 2 &&
+         format.commonFormat == AVAudioPCMFormatFloat32;
 }
 
 - (BOOL)allocateRenderResourcesAndReturnError:
@@ -500,6 +503,8 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
           .max_block_size = maximum_frames,
           .channel_count = _outputBus.format.channelCount,
       });
+  _interleavedScratchLeft.assign(maximum_frames, 0.0F);
+  _interleavedScratchRight.assign(maximum_frames, 0.0F);
 
   if (![super allocateRenderResourcesAndReturnError:outError]) {
     return NO;
@@ -520,6 +525,8 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
 
 - (AUInternalRenderBlock)internalRenderBlock {
   __block CamelCrusherRuntimeBridgeRuntime* runtime = _runtime;
+  __block std::vector<float>* interleaved_left = &_interleavedScratchLeft;
+  __block std::vector<float>* interleaved_right = &_interleavedScratchRight;
   return ^AUAudioUnitStatus(AudioUnitRenderActionFlags* actionFlags,
                             const AudioTimeStamp* timestamp,
                             AUAudioFrameCount frameCount,
@@ -532,7 +539,7 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
     if (pullInputBlock == nil) {
       return kAudioUnitErr_NoConnection;
     }
-    if (outputData == nullptr || outputData->mNumberBuffers < 2) {
+    if (outputData == nullptr || outputData->mNumberBuffers == 0) {
       return kAudio_ParamError;
     }
 
@@ -542,14 +549,52 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
       return status;
     }
 
-    auto* left = static_cast<float*>(outputData->mBuffers[0].mData);
-    auto* right = static_cast<float*>(outputData->mBuffers[1].mData);
+    float* left = nullptr;
+    float* right = nullptr;
+
+    if (outputData->mNumberBuffers >= 2 &&
+        outputData->mBuffers[0].mNumberChannels == 1 &&
+        outputData->mBuffers[1].mNumberChannels == 1) {
+      left = static_cast<float*>(outputData->mBuffers[0].mData);
+      right = static_cast<float*>(outputData->mBuffers[1].mData);
+    } else if (outputData->mNumberBuffers == 1 &&
+               outputData->mBuffers[0].mNumberChannels == 2) {
+      if (frameCount > interleaved_left->size() ||
+          frameCount > interleaved_right->size()) {
+        return kAudioUnitErr_TooManyFramesToProcess;
+      }
+
+      auto* interleaved_samples =
+          static_cast<float*>(outputData->mBuffers[0].mData);
+      if (interleaved_samples == nullptr) {
+        return kAudio_ParamError;
+      }
+
+      for (AUAudioFrameCount frame = 0; frame < frameCount; ++frame) {
+        (*interleaved_left)[frame] = interleaved_samples[frame * 2];
+        (*interleaved_right)[frame] = interleaved_samples[frame * 2 + 1];
+      }
+
+      left = interleaved_left->data();
+      right = interleaved_right->data();
+    }
+
     if (left == nullptr || right == nullptr) {
       return kAudio_ParamError;
     }
 
     camelcrusher_runtime_bridge_runtime_process_stereo(
         runtime, left, right, static_cast<size_t>(frameCount));
+
+    if (outputData->mNumberBuffers == 1 &&
+        outputData->mBuffers[0].mNumberChannels == 2) {
+      auto* interleaved_samples =
+          static_cast<float*>(outputData->mBuffers[0].mData);
+      for (AUAudioFrameCount frame = 0; frame < frameCount; ++frame) {
+        interleaved_samples[frame * 2] = (*interleaved_left)[frame];
+        interleaved_samples[frame * 2 + 1] = (*interleaved_right)[frame];
+      }
+    }
     return noErr;
   };
 }

@@ -2,6 +2,7 @@
 #include "camelcrusher_recalled/LegacyImport.h"
 #include "camelcrusher_recalled/ModernPluginModel.h"
 #include "camelcrusher_recalled/ModernProcessor.h"
+#include "camelcrusher_recalled/ModernRuntime.h"
 
 #include <algorithm>
 #include <cassert>
@@ -14,6 +15,7 @@ namespace {
 using camelcrusher_recalled::decodeLegacyChunk;
 using camelcrusher_recalled::encodeLegacyChunk;
 using camelcrusher_recalled::importLegacyState;
+using camelcrusher_recalled::makeDefaultModernPluginState;
 using camelcrusher_recalled::modernPluginStateFromLegacyImport;
 using camelcrusher_recalled::modernProcessingControlsFromState;
 using camelcrusher_recalled::ModernAudioBlock;
@@ -137,6 +139,36 @@ int main() {
 
   assert(linked_left[0] > linked_right[0]);
   assert(linked_right[1] < 0.35F);
+
+  processor.reset();
+  ModernPluginState right_only_state = makeDefaultModernPluginState();
+  right_only_state.state.master_on = 1.0F;
+  right_only_state.state.master_mix = 1.0F;
+  right_only_state.state.master_volume = 0.5F;
+  right_only_state.state.dist_on = 1.0F;
+  right_only_state.state.dist_mech = 0.80F;
+  right_only_state.state.dist_tube = 0.60F;
+  right_only_state.state.mm_filter_on = 1.0F;
+  right_only_state.state.mm_filter_cutoff = 0.35F;
+  right_only_state.state.mm_filter_res = 0.40F;
+  right_only_state.state.compress_on = 1.0F;
+  right_only_state.state.compress_amount = 0.70F;
+  right_only_state.state.compress_mode = 0.0F;
+
+  std::vector<float> right_only_left(16, 0.0F);
+  std::vector<float> right_only_right(16, 0.0F);
+  right_only_right[0] = 0.65F;
+  right_only_right[2] = -0.30F;
+
+  processor.processBlock(ModernAudioBlock{
+                             .left = right_only_left,
+                             .right = right_only_right,
+                         },
+                         right_only_state);
+
+  assert(peakMagnitude(right_only_left) < 0.000001F);
+  assert(!nearlyEqual(right_only_right[0], 0.0F));
+  assert(!nearlyEqual(right_only_right[2], 0.0F));
 
   processor.reset();
   ModernPluginState bypass_state = modern_state;
