@@ -51,8 +51,8 @@
 - The public repo landing page was tightened after publish:
   - `README.md` is now a short high-level landing page instead of an engineering dump.
   - `docs/assets/camelcrusher-ui-preview.png` is now generated from the live shared macOS UI surface via `tools/render_mac_editor_preview.mm`, so the published screenshot includes the corrected button layout and visible `Randomize` button.
-  - The repo now exposes a direct downloadable installer at `downloads/CamelCrusher-Rebuilt-0.7.0.pkg`.
-  - The first public release page is now live at `https://github.com/lostlessvisuals/camelcrusher-rebuilt/releases/tag/v0.7.0`.
+  - The repo now exposes a direct downloadable installer at `downloads/CamelCrusher-Rebuilt-0.7.1.pkg`.
+  - The first public release page is still the older `v0.7.0` page; a cleaner rerelease path is to tag and ship `v0.7.1` so the installer filename stops drifting under the old version.
   - The public repo no longer includes the `reference/` tree; `tools/prepare_github_export.sh` now excludes it entirely, and `main` removed the previously published reference assets at commit `e794d3c` (`Remove reference folder from public export`).
 - The project is grounded in inspected Ableton `.als` fixtures from `/Volumes/T7/Dropbox/Music/RIPPED/altare/Projects`.
 - Verified legacy Live references use `VST2` CamelCrusher at `/Library/Audio/Plug-Ins/VST2/CamelCrusher.vst`.
@@ -190,12 +190,13 @@
   - Added public-safe fixture source labels so the checked-in JSON artifacts do not expose local Dropbox paths.
   - Fixed a repo-wide AU packaging race where `cmake --build build -j` could try to rebuild the AU bundle stamp twice; the host-container packaging path now depends on the AU bundle utility target instead of racing the stamp file directly.
 - `ctest --test-dir build --output-on-failure` passes locally with `18/18`.
-- `tools/build_macos_release.sh` now passes end to end again after the `VST2` naming cleanup, regenerating `release/CamelCrusher-Rebuilt-0.7.0-macOS/Install CamelCrusher.pkg` with AU/VST2/VST3 choices and refreshed staged payloads.
+- `tools/build_macos_release.sh` now passes end to end again after the `VST2` naming cleanup, regenerating `release/CamelCrusher-Rebuilt-0.7.1-macOS/Install CamelCrusher.pkg` with AU/VST2/VST3 choices and refreshed staged payloads.
 - `tools/prepare_github_export.sh` now regenerates `open-source-export/camelcrusher-rebuilt` without any remaining `private_vst2` source/docs references.
 - The GitHub repo `lostlessvisuals/camelcrusher-rebuilt` is now live and currently matches the exported tree head at commit `421373e` (`Vendor VST3 SDK contents`).
 - The published repo has moved beyond the initial publish:
   - `main` now includes the shorter README, regenerated screenshot, preview-render helper, and direct installer download at commit `c890b12` (`Add direct installer download`).
   - The public release page `v0.7.0` exists and points people at the direct installer URL even though the release assets themselves still only show GitHub’s auto-generated source archives.
+  - On May 10, 2026, the repo download drift was corrected and then rolled into a real `0.7.1` rerelease so the public raw GitHub URL can point at a correctly versioned installer instead of silently replacing the old `0.7.0` bits.
 - A fresh scratch build at `/tmp/camelcrusher-recalled-fresh-build` now proves the default repo configure path uses `third_party/vst2sdk` instead of a machine-local Downloads checkout, and that scratch tree also passes `18/18` tests.
 - Installer validation now has a clearer status:
   - `installer -showChoicesXML -pkg ... -target /` reports the expected AU/VST2/VST3 selectable choices

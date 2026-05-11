@@ -18,7 +18,7 @@ The current host-facing plug-in name is still `CamelCrusher`.
 
 Download the current macOS installer directly from the repo:
 
-- [CamelCrusher-Rebuilt-0.7.0.pkg](downloads/CamelCrusher-Rebuilt-0.7.0.pkg)
+- [CamelCrusher-Rebuilt-0.7.1.pkg](downloads/CamelCrusher-Rebuilt-0.7.1.pkg)
 
 Versioned announcement posts can also live on [GitHub Releases](https://github.com/lostlessvisuals/camelcrusher-rebuilt/releases).
 
