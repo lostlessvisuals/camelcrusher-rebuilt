@@ -51,8 +51,8 @@
 - The public repo landing page was tightened after publish:
   - `README.md` is now a short high-level landing page instead of an engineering dump.
   - `docs/assets/camelcrusher-ui-preview.png` is now generated from the live shared macOS UI surface via `tools/render_mac_editor_preview.mm`, so the published screenshot includes the corrected button layout and visible `Randomize` button.
-  - The repo now exposes a direct downloadable installer at `downloads/CamelCrusher-Rebuilt-0.7.1.pkg`.
-  - The first public release page is still the older `v0.7.0` page; a cleaner rerelease path is to tag and ship `v0.7.1` so the installer filename stops drifting under the old version.
+  - The repo now exposes a direct downloadable installer at `downloads/CamelCrusher-Rebuilt-0.7.2.pkg`.
+  - The next clean rerelease for the latest verified VST2 stereo fix should ship as `v0.7.2` so the installer filename does not drift under the older `0.7.1` version string.
   - The public repo no longer includes the `reference/` tree; `tools/prepare_github_export.sh` now excludes it entirely, and `main` removed the previously published reference assets at commit `e794d3c` (`Remove reference folder from public export`).
 - The project is grounded in inspected Ableton `.als` fixtures from `/Volumes/T7/Dropbox/Music/RIPPED/altare/Projects`.
 - Verified legacy Live references use `VST2` CamelCrusher at `/Library/Audio/Plug-Ins/VST2/CamelCrusher.vst`.
@@ -87,6 +87,12 @@
   - the `VST3` processor now safely handles mono-input/stereo-output host layouts instead of assuming channel 2 always exists
   - the `AU` render block now handles both deinterleaved stereo buffers and one-buffer interleaved stereo buffers
   - the first failing AU regression was a false alarm caused by Objective-C block capture semantics in the test, not by the runtime path itself
+- Verified a separate `VST2` stereo-host-contract bug on May 24, 2026:
+  - the shared DSP core was still fine, but the `VST2` wrapper had been reporting inconsistent stereo metadata to the host
+  - `CamelCrusherVst2Effect` now reports both input and output pins as stereo and implements explicit `setSpeakerArrangement` / `getSpeakerArrangement` handling
+  - the current contract accepts mono-in/stereo-out, rejects mono-out, and keeps the preferred arrangement stereo/stereo
+  - `tests/vst2_compat_smoke.cpp` now locks that behavior down in addition to the earlier right-only dry-pass regression
+  - the repo was also carrying a stale `build/` cache that still pointed at the older `camelcrusher-recalled` source path, so `build/` was reconfigured fresh and the rebuilt user-level `VST2` test install now lives at `~/Library/Audio/Plug-Ins/VST/CamelCrusher.vst`
 - A user-side manual check has now confirmed that the current AU opens in Ableton Live on this machine.
 - The remake/project name is still `CamelCrusher Rebuilt`, while the current host-facing plug-in name has been moved back to `CamelCrusher`. The workspace path and bundle identifiers still retain `camelcrusher-recalled` for continuity during active development.
 - Ableton rename lesson from April 29, 2026: Live was sensitive to AUv3 host-facing rename changes on this machine. After moving away from `CamelCrusher Rebuilt` again, the safe path is to keep the AU component-facing identity vendor-prefixed and bump the bundle/component version each time that host-facing identity changes.
@@ -195,7 +201,6 @@
 - The GitHub repo `lostlessvisuals/camelcrusher-rebuilt` is now live and currently matches the exported tree head at commit `421373e` (`Vendor VST3 SDK contents`).
 - The published repo has moved beyond the initial publish:
   - `main` now includes the shorter README, regenerated screenshot, preview-render helper, and direct installer download at commit `c890b12` (`Add direct installer download`).
-  - The public release page `v0.7.0` exists and points people at the direct installer URL even though the release assets themselves still only show GitHub’s auto-generated source archives.
   - On May 10, 2026, the repo download drift was corrected and then rolled into a real `0.7.1` rerelease so the public raw GitHub URL can point at a correctly versioned installer instead of silently replacing the old `0.7.0` bits.
 - A fresh scratch build at `/tmp/camelcrusher-recalled-fresh-build` now proves the default repo configure path uses `third_party/vst2sdk` instead of a machine-local Downloads checkout, and that scratch tree also passes `18/18` tests.
 - Installer validation now has a clearer status:
