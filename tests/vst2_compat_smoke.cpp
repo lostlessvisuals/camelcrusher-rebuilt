@@ -52,11 +52,73 @@ int main() {
   require(aeffect->numPrograms == kLegacyProgramCount, "Expected 20 programs");
   require(aeffect->numParams == 17, "Expected 17 parameters");
   require(aeffect->version == 1, "Expected legacy plugin version 1");
-  require(aeffect->flags == 57, "Expected original CamelCrusher raw VST2 flags");
+  require(aeffect->flags == 49,
+          "Expected VST2 flags without legacy CanMono routing");
   require((aeffect->flags & effFlagsProgramChunks) != 0,
           "Expected chunk-based VST2 state");
+  require((aeffect->flags & effFlagsCanMono) == 0,
+          "Expected CanMono to be disabled for stable stereo routing");
   require(effect.getPlugCategory() == kPlugCategUnknown,
           "Expected original CamelCrusher plug-in category");
+
+  VstPinProperties input_0{};
+  VstPinProperties input_1{};
+  VstPinProperties output_0{};
+  VstPinProperties output_1{};
+  require(effect.getInputProperties(0, &input_0),
+          "Expected first VST2 input pin properties");
+  require(effect.getInputProperties(1, &input_1),
+          "Expected second VST2 input pin properties");
+  require(effect.getOutputProperties(0, &output_0),
+          "Expected first VST2 output pin properties");
+  require(effect.getOutputProperties(1, &output_1),
+          "Expected second VST2 output pin properties");
+
+  const auto require_stereo_pin = [](const VstPinProperties& properties,
+                                     const char* message) {
+    require((properties.flags & (kVstPinIsActive | kVstPinIsStereo)) ==
+                (kVstPinIsActive | kVstPinIsStereo),
+            message);
+    require(properties.arrangementType == kSpeakerArrStereo,
+            "Expected stereo pin arrangement");
+  };
+
+  require_stereo_pin(input_0, "Expected first input pin to report stereo");
+  require_stereo_pin(input_1, "Expected second input pin to report stereo");
+  require_stereo_pin(output_0, "Expected first output pin to report stereo");
+  require_stereo_pin(output_1, "Expected second output pin to report stereo");
+
+  VstSpeakerArrangement mono_input{};
+  mono_input.type = kSpeakerArrMono;
+  mono_input.numChannels = 1;
+  VstSpeakerArrangement stereo_input{};
+  stereo_input.type = kSpeakerArrStereo;
+  stereo_input.numChannels = 2;
+  VstSpeakerArrangement stereo_output{};
+  stereo_output.type = kSpeakerArrStereo;
+  stereo_output.numChannels = 2;
+  VstSpeakerArrangement mono_output{};
+  mono_output.type = kSpeakerArrMono;
+  mono_output.numChannels = 1;
+
+  require(effect.setSpeakerArrangement(&mono_input, &stereo_output),
+          "Expected mono input with stereo output to be accepted");
+  VstSpeakerArrangement* negotiated_input = nullptr;
+  VstSpeakerArrangement* negotiated_output = nullptr;
+  require(effect.getSpeakerArrangement(&negotiated_input, &negotiated_output),
+          "Expected speaker arrangement query to succeed");
+  require(negotiated_input != nullptr && negotiated_input->type == kSpeakerArrMono &&
+              negotiated_input->numChannels == 1,
+          "Expected mono input arrangement to persist");
+  require(negotiated_output != nullptr &&
+              negotiated_output->type == kSpeakerArrStereo &&
+              negotiated_output->numChannels == 2,
+          "Expected stereo output arrangement to persist");
+
+  require(effect.setSpeakerArrangement(&stereo_input, &stereo_output),
+          "Expected stereo input with stereo output to be accepted");
+  require(!effect.setSpeakerArrangement(&stereo_input, &mono_output),
+          "Expected mono output arrangement to be rejected");
 
   char effect_name[kVstMaxEffectNameLen] = {};
   require(effect.getEffectName(effect_name), "Expected effect name");
@@ -151,6 +213,48 @@ int main() {
   require(almostEqual(right_output[0], 0.65F) &&
               almostEqual(right_output[2], -0.30F),
           "Expected right-only input to stay on the right channel");
+
+  left_input[0] = 0.4F;
+  left_input[1] = -0.2F;
+  right_input[0] = 0.0F;
+  right_input[1] = 0.0F;
+  std::memset(left_output, 0, sizeof(left_output));
+  std::memset(right_output, 0, sizeof(right_output));
+  require(effect.setSpeakerArrangement(&stereo_input, &stereo_output),
+          "Expected stereo input with stereo output to remain accepted");
+  effect.processReplacing(inputs, outputs, 8);
+  require(almostEqual(left_output[0], 0.4F) &&
+              almostEqual(left_output[1], -0.2F),
+          "Expected left input to remain on the left output");
+  require(almostEqual(right_output[0], 0.4F) &&
+              almostEqual(right_output[1], -0.2F),
+          "Expected left-only stereo block to be treated as centered mono");
+
+  std::memset(left_output, 0, sizeof(left_output));
+  std::memset(right_output, 0, sizeof(right_output));
+  aeffect->process(aeffect, inputs, outputs, 8);
+  require(almostEqual(left_output[0], 0.4F) &&
+              almostEqual(left_output[1], -0.2F),
+          "Expected legacy VST2 process path to keep left input on the left");
+  require(almostEqual(right_output[0], 0.4F) &&
+              almostEqual(right_output[1], -0.2F),
+          "Expected legacy VST2 process path to center a left-only stereo block");
+
+  require(effect.setSpeakerArrangement(&mono_input, &stereo_output),
+          "Expected mono input with stereo output to remain accepted");
+  left_input[0] = 0.4F;
+  left_input[1] = -0.2F;
+  right_input[0] = 0.0F;
+  right_input[1] = 0.0F;
+  std::memset(left_output, 0, sizeof(left_output));
+  std::memset(right_output, 0, sizeof(right_output));
+  effect.processReplacing(inputs, outputs, 8);
+  require(almostEqual(left_output[0], 0.4F) &&
+              almostEqual(left_output[1], -0.2F),
+          "Expected mono input to remain on the left output");
+  require(almostEqual(right_output[0], 0.4F) &&
+              almostEqual(right_output[1], -0.2F),
+          "Expected mono-in stereo-out negotiation to mirror mono input to the right output");
 
   return 0;
 }
