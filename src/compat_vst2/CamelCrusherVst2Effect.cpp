@@ -9,15 +9,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdlib>
 #include <cstdio>
 #include <cstring>
-#include <filesystem>
-#include <fstream>
-#include <mutex>
 #include <span>
 #include <string>
-#include <system_error>
 
 namespace camelcrusher_recalled {
 namespace {
@@ -27,69 +22,6 @@ constexpr std::string_view kVendorName = "Camel Audio";
 constexpr VstInt32 kLegacyPluginVersion = 101;
 constexpr VstInt32 kMonoChannelCount = 1;
 constexpr VstInt32 kStereoChannelCount = 2;
-constexpr int kMaxTraceProcessEvents = 512;
-
-std::mutex& traceMutex() {
-  static std::mutex mutex;
-  return mutex;
-}
-
-std::filesystem::path traceLogPath() {
-  if (const char* home = std::getenv("HOME")) {
-    return std::filesystem::path(home) / "Library" / "Logs" /
-           "CamelCrusherRebuilt" / "vst2-runtime.log";
-  }
-  return std::filesystem::temp_directory_path() / "camelcrusher-vst2-runtime.log";
-}
-
-void appendTraceLine(const std::string& line) {
-  std::lock_guard<std::mutex> lock(traceMutex());
-  const auto path = traceLogPath();
-  std::error_code error;
-  std::filesystem::create_directories(path.parent_path(), error);
-  std::ofstream stream(path, std::ios::app);
-  if (!stream.is_open()) {
-    return;
-  }
-  stream << line << '\n';
-}
-
-std::string formatSpeakerArrangement(const VstSpeakerArrangement* arrangement) {
-  if (arrangement == nullptr) {
-    return "null";
-  }
-
-  return "type=" + std::to_string(arrangement->type) +
-         " channels=" + std::to_string(arrangement->numChannels);
-}
-
-struct ChannelStats {
-  float first_sample = 0.0F;
-  float mean_abs = 0.0F;
-  float max_abs = 0.0F;
-};
-
-ChannelStats computeChannelStats(const float* buffer, const VstInt32 sample_frames) {
-  ChannelStats stats;
-  if (buffer == nullptr || sample_frames <= 0) {
-    return stats;
-  }
-
-  stats.first_sample = buffer[0];
-  const auto frame_count = std::min<VstInt32>(sample_frames, 256);
-  float abs_sum = 0.0F;
-  float abs_max = 0.0F;
-  for (VstInt32 frame = 0; frame < frame_count; ++frame) {
-    const auto value = std::abs(buffer[frame]);
-    abs_sum += value;
-    abs_max = std::max(abs_max, value);
-  }
-
-  stats.mean_abs = abs_sum / static_cast<float>(frame_count);
-  stats.max_abs = abs_max;
-  return stats;
-}
-
 bool isSwitchParameter(const VstInt32 index) {
   const auto parameter_id = legacyParameterIdFromLegacyIndex(index);
   return parameter_id.has_value() && isSwitchLikeParameter(parameter_id.value());
@@ -124,6 +56,12 @@ VstSpeakerArrangement makeSpeakerArrangement(const VstInt32 type,
   VstSpeakerArrangement arrangement{};
   arrangement.type = type;
   arrangement.numChannels = num_channels;
+  for (VstInt32 channel = 0; channel < num_channels; ++channel) {
+    auto& speaker = arrangement.speakers[channel];
+    speaker.type = num_channels == 1 ? kSpeakerM : (channel == 0 ? kSpeakerL : kSpeakerR);
+    std::snprintf(speaker.name, sizeof(speaker.name), "%s",
+                  num_channels == 1 ? "Mono" : (channel == 0 ? "Left" : "Right"));
+  }
   return arrangement;
 }
 
@@ -141,10 +79,17 @@ bool isStereoArrangement(const VstSpeakerArrangement* arrangement) {
 
 void initializePinProperties(VstPinProperties& properties,
                              const VstInt32 index,
-                             const std::string_view prefix) {
+                             const std::string_view prefix,
+                             const VstSpeakerArrangement& arrangement) {
   std::memset(&properties, 0, sizeof(VstPinProperties));
-  properties.flags = kVstPinIsActive | kVstPinIsStereo;
-  properties.arrangementType = kSpeakerArrStereo;
+  properties.flags = kVstPinUseSpeaker;
+  if (index < arrangement.numChannels) {
+    properties.flags |= kVstPinIsActive;
+  }
+  if (arrangement.numChannels == 2 && index == 0) {
+    properties.flags |= kVstPinIsStereo;
+  }
+  properties.arrangementType = arrangement.type;
 
   const auto side = (index % 2) == 0 ? " L" : " R";
   std::snprintf(properties.label, sizeof(properties.label), "%.*s%s",
@@ -163,7 +108,6 @@ CamelCrusherVst2Effect::CamelCrusherVst2Effect(
           makeSpeakerArrangement(kSpeakerArrStereo, kStereoChannelCount)),
       output_arrangement_(
           makeSpeakerArrangement(kSpeakerArrStereo, kStereoChannelCount)) {
-  trace_instance_id_ = nextTraceInstanceId();
   setEditor(createCamelCrusherVst2Editor(*this));
   setNumInputs(2);
   setNumOutputs(2);
@@ -172,8 +116,6 @@ CamelCrusherVst2Effect::CamelCrusherVst2Effect(
   programsAreChunks();
   adoptProgram(0);
   refreshProcessingState();
-  appendTraceLine("instance=" + std::to_string(trace_instance_id_) +
-                  " ctor flags=" + std::to_string(getAeffect()->flags));
 }
 
 void CamelCrusherVst2Effect::setSampleRate(const float sample_rate) {
@@ -193,129 +135,57 @@ void CamelCrusherVst2Effect::resume() {
 
 void CamelCrusherVst2Effect::suspend() {
   processor_.reset();
-  appendTraceLine("instance=" + std::to_string(trace_instance_id_) + " suspend");
 }
 
 void CamelCrusherVst2Effect::DECLARE_VST_DEPRECATED(process)(
-    float** inputs,
-    float** outputs,
-    const VstInt32 sample_frames) {
-  processFloatBuffers(inputs, outputs, sample_frames, "process");
+    float** inputs, float** outputs, const VstInt32 sample_frames) {
+  processFloatBuffers(inputs, outputs, sample_frames, true);
 }
 
-void CamelCrusherVst2Effect::processReplacing(float** inputs,
-                                              float** outputs,
-                                              const VstInt32 sample_frames) {
-  processFloatBuffers(inputs, outputs, sample_frames, "processReplacing");
+void CamelCrusherVst2Effect::processReplacing(
+    float** inputs, float** outputs, const VstInt32 sample_frames) {
+  processFloatBuffers(inputs, outputs, sample_frames, false);
 }
 
-void CamelCrusherVst2Effect::processFloatBuffers(float** inputs,
-                                                 float** outputs,
-                                                 const VstInt32 sample_frames,
-                                                 const std::string_view callsite) {
-  const auto right_input_connected =
-      DECLARE_VST_DEPRECATED(isInputConnected)(1) ? 1 : 0;
-  const auto right_output_connected =
-      DECLARE_VST_DEPRECATED(isOutputConnected)(1) ? 1 : 0;
-  const auto left_input_stats =
-      computeChannelStats(inputs != nullptr ? inputs[0] : nullptr, sample_frames);
-  const auto right_input_stats =
-      computeChannelStats(inputs != nullptr ? inputs[1] : nullptr, sample_frames);
-  const auto has_signal = left_input_stats.max_abs > 1.0e-6F ||
-                          right_input_stats.max_abs > 1.0e-6F;
-
-  if (trace_process_events_ < kMaxTraceProcessEvents || has_signal) {
-    ++trace_process_events_;
-    appendTraceLine(
-        "instance=" + std::to_string(trace_instance_id_) +
-        " " + std::string(callsite) +
-        " call=" + std::to_string(trace_process_events_) +
-        " frames=" + std::to_string(sample_frames) +
-        " in0=" + std::to_string(inputs != nullptr && inputs[0] != nullptr) +
-        " in1=" + std::to_string(inputs != nullptr && inputs[1] != nullptr) +
-        " out0=" + std::to_string(outputs != nullptr && outputs[0] != nullptr) +
-        " out1=" + std::to_string(outputs != nullptr && outputs[1] != nullptr) +
-        " in1Connected=" + std::to_string(right_input_connected) +
-        " out1Connected=" + std::to_string(right_output_connected) +
-        " inPtrsSame=" + std::to_string(inputs != nullptr && inputs[0] == inputs[1]) +
-        " outPtrsSame=" + std::to_string(outputs != nullptr && outputs[0] == outputs[1]) +
-        " inArr=" + std::to_string(input_arrangement_.type) + "/" +
-        std::to_string(input_arrangement_.numChannels) +
-        " outArr=" + std::to_string(output_arrangement_.type) + "/" +
-        std::to_string(output_arrangement_.numChannels) +
-        " inL[first=" + std::to_string(left_input_stats.first_sample) +
-        " meanAbs=" + std::to_string(left_input_stats.mean_abs) +
-        " maxAbs=" + std::to_string(left_input_stats.max_abs) + "]" +
-        " inR[first=" + std::to_string(right_input_stats.first_sample) +
-        " meanAbs=" + std::to_string(right_input_stats.mean_abs) +
-        " maxAbs=" + std::to_string(right_input_stats.max_abs) + "]");
-  }
-
-  if (outputs == nullptr || outputs[0] == nullptr || sample_frames <= 0) {
+void CamelCrusherVst2Effect::processFloatBuffers(
+    float** inputs, float** outputs, const VstInt32 sample_frames,
+    const bool accumulate) {
+  if (outputs == nullptr || sample_frames <= 0) {
     return;
   }
 
-  auto left_output = std::span<float>(outputs[0], sample_frames);
-  auto right_output =
-      outputs[1] != nullptr ? std::span<float>(outputs[1], sample_frames)
-                            : std::span<float>{};
+  const float* left_input = inputs != nullptr ? inputs[0] : nullptr;
+  // Silence is valid stereo content. Only an explicit mono layout duplicates L.
+  const float* right_input = input_arrangement_.numChannels == 1
+                                ? left_input
+                                : (inputs != nullptr ? inputs[1] : nullptr);
 
-  const auto right_input_connected_runtime =
-      DECLARE_VST_DEPRECATED(isInputConnected)(1);
-  const auto host_left_only_mono_source =
-      left_input_stats.max_abs > 1.0e-6F &&
-      right_input_stats.max_abs <= 1.0e-6F &&
-      input_arrangement_.type == kSpeakerArrStereo &&
-      input_arrangement_.numChannels >= kStereoChannelCount &&
-      right_input_connected_runtime;
-  const auto mono_input_negotiated =
-      input_arrangement_.type == kSpeakerArrMono ||
-      input_arrangement_.numChannels <= kMonoChannelCount ||
-      !right_input_connected_runtime ||
-      host_left_only_mono_source;
-  const float* left_input =
-      inputs != nullptr && inputs[0] != nullptr ? inputs[0] : nullptr;
-  const float* right_input = mono_input_negotiated
-                                 ? left_input
-                                 : (inputs != nullptr && inputs[1] != nullptr
-                                        ? inputs[1]
-                                        : left_input);
-
-  if (trace_process_events_ <= kMaxTraceProcessEvents || has_signal) {
-    appendTraceLine("instance=" + std::to_string(trace_instance_id_) +
-                    " " + std::string(callsite) +
-                    " hostLeftOnlyMono=" +
-                    std::to_string(host_left_only_mono_source ? 1 : 0));
-  }
-
-  for (VstInt32 frame = 0; frame < sample_frames; ++frame) {
-    const auto left_sample = left_input != nullptr ? left_input[frame] : 0.0F;
-    left_output[frame] = left_sample;
-    if (!right_output.empty()) {
-      right_output[frame] =
-          right_input != nullptr ? right_input[frame] : left_sample;
+  // Fixed scratch storage supports in-place/accumulating callbacks and arbitrary
+  // host block sizes without allocating or calling the host on the audio thread.
+  for (VstInt32 offset = 0; offset < sample_frames;) {
+    const auto count = std::min<VstInt32>(
+        sample_frames - offset, static_cast<VstInt32>(process_left_.size()));
+    for (VstInt32 frame = 0; frame < count; ++frame) {
+      process_left_[frame] = left_input != nullptr ? left_input[offset + frame] : 0.0F;
+      process_right_[frame] = right_input != nullptr ? right_input[offset + frame] : 0.0F;
     }
-  }
-
-  processor_.processBlock(ModernAudioBlock{
-                              .left = left_output,
-                              .right = right_output,
-                          },
-                          processing_state_);
-
-  if (trace_process_events_ <= kMaxTraceProcessEvents || has_signal) {
-    const auto left_output_stats = computeChannelStats(outputs[0], sample_frames);
-    const auto right_output_stats =
-        computeChannelStats(outputs[1], sample_frames);
-    appendTraceLine(
-        "instance=" + std::to_string(trace_instance_id_) +
-        " " + std::string(callsite) + " outL[first=" +
-        std::to_string(left_output_stats.first_sample) + " meanAbs=" +
-        std::to_string(left_output_stats.mean_abs) + " maxAbs=" +
-        std::to_string(left_output_stats.max_abs) + "]" +
-        " outR[first=" + std::to_string(right_output_stats.first_sample) +
-        " meanAbs=" + std::to_string(right_output_stats.mean_abs) +
-        " maxAbs=" + std::to_string(right_output_stats.max_abs) + "]");
+    processor_.processBlock(
+        ModernAudioBlock{
+            .left = std::span<float>(process_left_.data(), count),
+            .right = std::span<float>(process_right_.data(), count),
+        },
+        processing_state_);
+    for (VstInt32 frame = 0; frame < count; ++frame) {
+      if (outputs[0] != nullptr) {
+        outputs[0][offset + frame] =
+            (accumulate ? outputs[0][offset + frame] : 0.0F) + process_left_[frame];
+      }
+      if (outputs[1] != nullptr) {
+        outputs[1][offset + frame] =
+            (accumulate ? outputs[1][offset + frame] : 0.0F) + process_right_[frame];
+      }
+    }
+    offset += count;
   }
 }
 
@@ -535,7 +405,7 @@ bool CamelCrusherVst2Effect::getInputProperties(const VstInt32 index,
     return false;
   }
 
-  initializePinProperties(*properties, index, "Input");
+  initializePinProperties(*properties, index, "Input", input_arrangement_);
   return true;
 }
 
@@ -545,17 +415,13 @@ bool CamelCrusherVst2Effect::getOutputProperties(const VstInt32 index,
     return false;
   }
 
-  initializePinProperties(*properties, index, "Output");
+  initializePinProperties(*properties, index, "Output", output_arrangement_);
   return true;
 }
 
 bool CamelCrusherVst2Effect::setSpeakerArrangement(
     VstSpeakerArrangement* pluginInput,
     VstSpeakerArrangement* pluginOutput) {
-  appendTraceLine("instance=" + std::to_string(trace_instance_id_) +
-                  " setSpeakerArrangement in{" +
-                  formatSpeakerArrangement(pluginInput) + "} out{" +
-                  formatSpeakerArrangement(pluginOutput) + "}");
   if (pluginOutput != nullptr && !isStereoArrangement(pluginOutput)) {
     return false;
   }
@@ -584,10 +450,6 @@ bool CamelCrusherVst2Effect::getSpeakerArrangement(
 
   *pluginInput = &input_arrangement_;
   *pluginOutput = &output_arrangement_;
-  appendTraceLine("instance=" + std::to_string(trace_instance_id_) +
-                  " getSpeakerArrangement in{" +
-                  formatSpeakerArrangement(*pluginInput) + "} out{" +
-                  formatSpeakerArrangement(*pluginOutput) + "}");
   return true;
 }
 
@@ -690,11 +552,6 @@ std::vector<std::byte> CamelCrusherVst2Effect::encodePresetChunk(
 
 bool CamelCrusherVst2Effect::isValidProgramIndex(const VstInt32 program) {
   return program >= 0 && program < kLegacyProgramCount;
-}
-
-int CamelCrusherVst2Effect::nextTraceInstanceId() {
-  static int next_id = 1;
-  return next_id++;
 }
 
 void CamelCrusherVst2Effect::copyVstString(char* destination,

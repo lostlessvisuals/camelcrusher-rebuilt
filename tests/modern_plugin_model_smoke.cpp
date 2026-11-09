@@ -3,7 +3,7 @@
 #include "camelcrusher_recalled/LegacyState.h"
 #include "camelcrusher_recalled/ModernPluginModel.h"
 
-#include <cassert>
+#include "TestSupport.h"
 #include <cmath>
 #include <cstddef>
 #include <iostream>
@@ -44,15 +44,15 @@ bool nearlyEqual(const float left, const float right) {
 
 int main() {
   const auto descriptors = modernPublicParameterDescriptors();
-  assert(descriptors.size() == kModernPublicParameterCount);
-  assert(descriptors[0].legacy_id == LegacyParameterId::kDistOn);
-  assert(descriptors[11].legacy_id == LegacyParameterId::kMasterVolume);
-  assert(modernPublicParameterIndex(LegacyParameterId::kCompressAmount).has_value());
-  assert(modernPublicParameterIndex(LegacyParameterId::kCompressAmount).value() ==
+  CC_CHECK(descriptors.size() == kModernPublicParameterCount);
+  CC_CHECK(descriptors[0].legacy_id == LegacyParameterId::kDistOn);
+  CC_CHECK(descriptors[11].legacy_id == LegacyParameterId::kMasterVolume);
+  CC_CHECK(modernPublicParameterIndex(LegacyParameterId::kCompressAmount).has_value());
+  CC_CHECK(modernPublicParameterIndex(LegacyParameterId::kCompressAmount).value() ==
          7U);
-  assert(!modernPublicParameterIndex(LegacyParameterId::kUnused1).has_value());
-  assert(modernLegacyParameterIdForPublicIndex(9).has_value());
-  assert(modernLegacyParameterIdForPublicIndex(9).value() ==
+  CC_CHECK(!modernPublicParameterIndex(LegacyParameterId::kUnused1).has_value());
+  CC_CHECK(modernLegacyParameterIdForPublicIndex(9).has_value());
+  CC_CHECK(modernLegacyParameterIdForPublicIndex(9).value() ==
          LegacyParameterId::kMasterOn);
 
   LegacyChunk synthetic_chunk;
@@ -61,34 +61,34 @@ int main() {
 
   const auto encoded = encodeLegacyChunk(synthetic_chunk);
   const auto decoded = decodeLegacyChunk(encoded);
-  assert(decoded.ok());
-  assert(decoded.chunk.has_value());
+  CC_CHECK(decoded.ok());
+  CC_CHECK(decoded.chunk.has_value());
 
   auto explicit_values = decoded.chunk->programs[1].parameter_values;
   explicit_values[10] = 1.25F;
   const auto imported = importLegacyState(decoded.chunk.value(), 1, explicit_values);
   ModernPluginState modern_state = modernPluginStateFromLegacyImport(imported);
 
-  assert(modern_state.selected_legacy_program_index.has_value());
-  assert(modern_state.selected_legacy_program_index.value() == 1U);
-  assert(modern_state.selected_legacy_program_name == "Second Program");
-  assert(modern_state.legacy_preset_bank.presets.size() == 2U);
-  assert(modern_state.legacy_parameter_mismatches.size() == 1U);
-  assert(modern_state.legacy_parameter_mismatches.front().id ==
+  CC_CHECK(modern_state.selected_legacy_program_index.has_value());
+  CC_CHECK(modern_state.selected_legacy_program_index.value() == 1U);
+  CC_CHECK(modern_state.selected_legacy_program_name == "Second Program");
+  CC_CHECK(modern_state.legacy_preset_bank.presets.size() == 2U);
+  CC_CHECK(modern_state.legacy_parameter_mismatches.size() == 1U);
+  CC_CHECK(modern_state.legacy_parameter_mismatches.front().id ==
          LegacyParameterId::kMasterMix);
 
   const auto public_values = modernPublicParameterArrayFromState(modern_state.state);
-  assert(public_values.size() == kModernPublicParameterCount);
-  assert(nearlyEqual(public_values[0], explicit_values[0]));
-  assert(nearlyEqual(public_values[7], explicit_values[7]));
-  assert(nearlyEqual(public_values[10], 1.0F));
+  CC_CHECK(public_values.size() == kModernPublicParameterCount);
+  CC_CHECK(nearlyEqual(public_values[0], explicit_values[0]));
+  CC_CHECK(nearlyEqual(public_values[7], explicit_values[7]));
+  CC_CHECK(nearlyEqual(public_values[10], 1.0F));
 
   const auto reserved_before = modern_state.state.unused_1;
   setModernPublicParameterValue(modern_state.state, 0, -0.25F);
   setModernPublicParameterValue(modern_state.state, 10, 1.50F);
-  assert(nearlyEqual(modern_state.state.dist_on, 0.0F));
-  assert(nearlyEqual(modern_state.state.master_mix, 1.0F));
-  assert(nearlyEqual(modern_state.state.unused_1, reserved_before));
+  CC_CHECK(nearlyEqual(modern_state.state.dist_on, 0.0F));
+  CC_CHECK(nearlyEqual(modern_state.state.master_mix, 1.0F));
+  CC_CHECK(nearlyEqual(modern_state.state.unused_1, reserved_before));
 
   std::cout << "Modern plugin model smoke test passed\n";
   return 0;

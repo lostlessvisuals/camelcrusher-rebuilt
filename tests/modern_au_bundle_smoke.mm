@@ -1,6 +1,6 @@
 #import <Foundation/Foundation.h>
 
-#include <cassert>
+#include "TestSupport.h"
 #include <fstream>
 
 #include <mach-o/loader.h>
@@ -23,40 +23,40 @@ int main() {
     NSFileManager* file_manager = [NSFileManager defaultManager];
     NSString* bundle_path = @CAMELCRUSHER_AU_BUNDLE_PATH;
     NSBundle* bundle = [NSBundle bundleWithPath:bundle_path];
-    assert(bundle != nil);
-    assert([file_manager fileExistsAtPath:bundle_path]);
+    CC_CHECK(bundle != nil);
+    CC_CHECK([file_manager fileExistsAtPath:bundle_path]);
 
     NSDictionary* info = bundle.infoDictionary;
-    assert(info != nil);
-    assert([info[@"CFBundlePackageType"] isEqualToString:@"XPC!"]);
-    assert([info[@"CFBundleDisplayName"] isEqualToString:@"CamelCrusher"]);
+    CC_CHECK(info != nil);
+    CC_CHECK([info[@"CFBundlePackageType"] isEqualToString:@"XPC!"]);
+    CC_CHECK([info[@"CFBundleDisplayName"] isEqualToString:@"CamelCrusher"]);
 
     NSDictionary* extension = info[@"NSExtension"];
-    assert(extension != nil);
-    assert([extension[@"NSExtensionPointIdentifier"]
+    CC_CHECK(extension != nil);
+    CC_CHECK([extension[@"NSExtensionPointIdentifier"]
         isEqualToString:@"com.apple.AudioUnit-UI"]);
-    assert([extension[@"NSExtensionPrincipalClass"]
+    CC_CHECK([extension[@"NSExtensionPrincipalClass"]
         isEqualToString:@"CamelCrusherRecalledViewController"]);
 
     NSDictionary* attributes = extension[@"NSExtensionAttributes"];
-    assert(attributes != nil);
+    CC_CHECK(attributes != nil);
     NSArray* components = attributes[@"AudioComponents"];
-    assert(components != nil);
-    assert(components.count == 1U);
+    CC_CHECK(components != nil);
+    CC_CHECK(components.count == 1U);
     NSDictionary* component = components.firstObject;
-    assert([component[@"description"] isEqualToString:@"CamelCrusher"]);
-    assert([component[@"manufacturer"] isEqualToString:@"CmAu"]);
-    assert([component[@"factoryFunction"]
+    CC_CHECK([component[@"description"] isEqualToString:@"CamelCrusher"]);
+    CC_CHECK([component[@"manufacturer"] isEqualToString:@"CmAu"]);
+    CC_CHECK([component[@"factoryFunction"]
         isEqualToString:@"CamelCrusherRecalledViewController"]);
-    assert([component[@"name"] isEqualToString:@"Camel Audio: CamelCrusher"]);
-    assert([component[@"subtype"] isEqualToString:@"CcrR"]);
-    assert([component[@"type"] isEqualToString:@"aufx"]);
-    assert([component[@"version"] isEqual:@8]);
+    CC_CHECK([component[@"name"] isEqualToString:@"Camel Audio: CamelCrusher"]);
+    CC_CHECK([component[@"subtype"] isEqualToString:@"CcrR"]);
+    CC_CHECK([component[@"type"] isEqualToString:@"aufx"]);
+    CC_CHECK([component[@"version"] isEqual:@(CAMELCRUSHER_EXPECTED_BUILD)]);
 
     NSString* executable_path = [bundle_path
         stringByAppendingPathComponent:@"Contents/MacOS/CamelCrusherAU"];
-    assert([file_manager fileExistsAtPath:executable_path]);
-    assert(hasExecutableMachOType(executable_path, MH_EXECUTE));
+    CC_CHECK([file_manager fileExistsAtPath:executable_path]);
+    CC_CHECK(hasExecutableMachOType(executable_path, MH_EXECUTE));
   }
 
   return 0;

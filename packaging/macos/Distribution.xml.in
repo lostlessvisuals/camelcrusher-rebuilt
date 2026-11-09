@@ -6,8 +6,8 @@
   <options customize="always" hostArchitectures="arm64" rootVolumeOnly="true"/>
   <choices-outline>
     <line choice="choice.au"/>
-    <line choice="choice.vst3"/>
     <line choice="choice.vst2"/>
+    <line choice="choice.vst3"/>
   </choices-outline>
   <choice id="choice.au" title="Audio Unit (AU)" description="Install the AU host app and embedded Audio Unit for Logic and Live.">
     <pkg-ref id="@CAMELCRUSHER_INSTALLER_AU_PKG_IDENTIFIER@">camelcrusher-au.pkg</pkg-ref>

@@ -10,6 +10,8 @@ Build one macOS installer that can install:
 
 ## Commands
 
+Build releases from a clean checkout of a committed source revision, not an overlaid export. The release folder records `SOURCE_COMMIT.txt` when built from Git. Do not publish source that differs from the inputs used to build the installer.
+
 - Release build and installer staging:
   - `tools/build_macos_release.sh`
 - Optional signing for AU bundles during the build:
@@ -29,6 +31,7 @@ That folder contains:
 - `Uninstall CamelCrusher.command`
 - `README.txt`
 - `SHA256SUMS.txt`
+- `SOURCE_COMMIT.txt` when built from a Git checkout
 - intermediate component packages and payload folders
 
 ## Installer Choices
@@ -44,6 +47,9 @@ The AU choice installs `/Applications/CamelCrusher Host.app` and runs a postinst
 ## Notes
 
 - The release builder now uses the vendored `VST2` SDK slice in `third_party/vst2sdk` by default.
+- Complete interface definitions are pinned in `third_party/vst2-interface`; preserve its ISC notice alongside the SDK notices.
+- The release gate expands the final package and runs `vst2_host_contract` and `modern_vst3_bundle_smoke` against those exact binaries. AU routing is tested in-process, with packaged AU executable/runtime equality and signature checks. This does not replace installed/out-of-process host validation.
+- VST2/VST3 component packages disable relocation and version-based skipping so an update reaches the canonical system path. Existing real bundles at VST2 alias paths are moved to recoverable backups outside scan directories.
 - The `VST2` option is meant for legacy-session compatibility on Apple Silicon Macs and now ships in the same installer family as `AU` and `VST3`.
 - The staged release is intentionally close to the local build layout. This pass does not create a separate “marketing” product tree with different assets or plugin identities.
 - The AU subpackage is built with an explicit component property list so PackageKit does not treat same-ID backups of `CamelCrusher Host.app` outside `/Applications` as relocated installs and skip the AU choice on reinstall.

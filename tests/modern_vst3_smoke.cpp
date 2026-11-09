@@ -13,7 +13,7 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
+#include "TestSupport.h"
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -48,13 +48,13 @@ void writeWrappedState(Steinberg::MemoryStream& stream,
                        const std::vector<std::byte>& bytes) {
   Steinberg::IBStreamer streamer(&stream, kLittleEndian);
   const auto length = static_cast<Steinberg::uint32>(bytes.size());
-  assert(streamer.writeInt32u(length));
+  CC_CHECK(streamer.writeInt32u(length));
   if (length > 0U) {
-    assert(streamer.writeRaw(const_cast<std::byte*>(bytes.data()),
+    CC_CHECK(streamer.writeRaw(const_cast<std::byte*>(bytes.data()),
                              static_cast<Steinberg::int32>(bytes.size())));
   }
   Steinberg::int64 reset = 0;
-  assert(stream.seek(0, Steinberg::IBStream::kIBSeekSet, &reset) ==
+  CC_CHECK(stream.seek(0, Steinberg::IBStream::kIBSeekSet, &reset) ==
          Steinberg::kResultOk);
 }
 
@@ -72,35 +72,35 @@ int main() {
   auto host = Steinberg::owned(new Steinberg::Vst::HostApplication());
   auto* processor = new CamelCrusherVst3Processor();
   auto* controller = new CamelCrusherVst3Controller();
-  assert(processor != nullptr);
-  assert(controller != nullptr);
+  CC_CHECK(processor != nullptr);
+  CC_CHECK(controller != nullptr);
 
-  assert(processor->initialize(host.get()) == Steinberg::kResultOk);
-  assert(controller->initialize(host.get()) == Steinberg::kResultOk);
+  CC_CHECK(processor->initialize(host.get()) == Steinberg::kResultOk);
+  CC_CHECK(controller->initialize(host.get()) == Steinberg::kResultOk);
   auto* view = controller->createView(Steinberg::Vst::ViewType::kEditor);
-  assert(view != nullptr);
-  assert(view->isPlatformTypeSupported(Steinberg::kPlatformTypeNSView) ==
+  CC_CHECK(view != nullptr);
+  CC_CHECK(view->isPlatformTypeSupported(Steinberg::kPlatformTypeNSView) ==
          Steinberg::kResultTrue);
   view->release();
 
-  assert(controller->getParameterCount() == 13);
-  assert(controller->getProgramListCount() == 1);
+  CC_CHECK(controller->getParameterCount() == 13);
+  CC_CHECK(controller->getProgramListCount() == 1);
 
   Steinberg::Vst::ProgramListInfo program_list_info{};
-  assert(controller->getProgramListInfo(0, program_list_info) == Steinberg::kResultOk);
-  assert(program_list_info.programCount == 21);
-  assert(program_list_info.id == kCamelCrusherProgramParameterId);
+  CC_CHECK(controller->getProgramListInfo(0, program_list_info) == Steinberg::kResultOk);
+  CC_CHECK(program_list_info.programCount == 21);
+  CC_CHECK(program_list_info.id == kCamelCrusherProgramParameterId);
 
   Steinberg::Vst::String128 program_name{};
-  assert(controller->getProgramName(kCamelCrusherProgramParameterId, 0, program_name) ==
+  CC_CHECK(controller->getProgramName(kCamelCrusherProgramParameterId, 0, program_name) ==
          Steinberg::kResultOk);
-  assert(string128ToAscii(program_name) == "Current State");
-  assert(controller->getProgramName(kCamelCrusherProgramParameterId, 1, program_name) ==
+  CC_CHECK(string128ToAscii(program_name) == "Current State");
+  CC_CHECK(controller->getProgramName(kCamelCrusherProgramParameterId, 1, program_name) ==
          Steinberg::kResultOk);
-  assert(string128ToAscii(program_name) == "Annihilate");
-  assert(controller->getProgramName(kCamelCrusherProgramParameterId, 20, program_name) ==
+  CC_CHECK(string128ToAscii(program_name) == "Annihilate");
+  CC_CHECK(controller->getProgramName(kCamelCrusherProgramParameterId, 20, program_name) ==
          Steinberg::kResultOk);
-  assert(string128ToAscii(program_name) == "Turn it to 11");
+  CC_CHECK(string128ToAscii(program_name) == "Turn it to 11");
 
   ModernPluginState imported = makeDefaultModernPluginState();
   imported.state.dist_on = 1.0F;
@@ -124,27 +124,27 @@ int main() {
 
   Steinberg::MemoryStream import_stream;
   writeWrappedState(import_stream, state_bytes);
-  assert(processor->setState(&import_stream) == Steinberg::kResultOk);
+  CC_CHECK(processor->setState(&import_stream) == Steinberg::kResultOk);
 
   Steinberg::MemoryStream controller_stream;
   writeWrappedState(controller_stream, state_bytes);
-  assert(controller->setComponentState(&controller_stream) == Steinberg::kResultOk);
+  CC_CHECK(controller->setComponentState(&controller_stream) == Steinberg::kResultOk);
 
   for (Steinberg::int32 index = 0; index < 12; ++index) {
-    assert(nearlyEqual(controller->getParamNormalized(index), expected_public[index]));
+    CC_CHECK(nearlyEqual(controller->getParamNormalized(index), expected_public[index]));
   }
 
   const auto selected_program = controller->getParamNormalized(
       kCamelCrusherProgramParameterId);
-  assert(selected_program > 0.0);
+  CC_CHECK(selected_program > 0.0);
 
   Steinberg::Vst::ProcessSetup setup{};
   setup.processMode = Steinberg::Vst::kRealtime;
   setup.symbolicSampleSize = Steinberg::Vst::kSample32;
   setup.maxSamplesPerBlock = 16;
   setup.sampleRate = 48000.0;
-  assert(processor->setupProcessing(setup) == Steinberg::kResultOk);
-  assert(processor->setActive(true) == Steinberg::kResultOk);
+  CC_CHECK(processor->setupProcessing(setup) == Steinberg::kResultOk);
+  CC_CHECK(processor->setActive(true) == Steinberg::kResultOk);
 
   std::vector<float> input_left(16, 0.0F);
   std::vector<float> input_right(16, 0.0F);
@@ -176,11 +176,11 @@ int main() {
   process_data.inputs = &inputs;
   process_data.outputs = &outputs;
 
-  assert(processor->process(process_data) == Steinberg::kResultOk);
-  assert(!nearlyEqual(output_left[0], 0.7F));
-  assert(!nearlyEqual(output_right[0], 0.7F));
-  assert(peakMagnitude(output_left) <= 1.0F);
-  assert(peakMagnitude(output_right) <= 1.0F);
+  CC_CHECK(processor->process(process_data) == Steinberg::kResultOk);
+  CC_CHECK(!nearlyEqual(output_left[0], 0.7F));
+  CC_CHECK(!nearlyEqual(output_right[0], 0.7F));
+  CC_CHECK(peakMagnitude(output_left) <= 1.0F);
+  CC_CHECK(peakMagnitude(output_right) <= 1.0F);
 
   ModernPluginState dry_state = makeDefaultModernPluginState();
   dry_state.state.master_on = 1.0F;
@@ -189,9 +189,9 @@ int main() {
   const auto dry_state_bytes = serializeModernPluginState(dry_state);
   Steinberg::MemoryStream dry_stream;
   writeWrappedState(dry_stream, dry_state_bytes);
-  assert(processor->setState(&dry_stream) == Steinberg::kResultOk);
-  assert(processor->setActive(false) == Steinberg::kResultOk);
-  assert(processor->setActive(true) == Steinberg::kResultOk);
+  CC_CHECK(processor->setState(&dry_stream) == Steinberg::kResultOk);
+  CC_CHECK(processor->setActive(false) == Steinberg::kResultOk);
+  CC_CHECK(processor->setActive(true) == Steinberg::kResultOk);
 
   std::vector<float> right_only_left(8, 0.0F);
   std::vector<float> right_only_right(8, 0.0F);
@@ -227,10 +227,17 @@ int main() {
   right_only_process.inputs = &right_only_inputs;
   right_only_process.outputs = &right_only_outputs;
 
-  assert(processor->process(right_only_process) == Steinberg::kResultOk);
-  assert(nearlyEqual(right_only_out_left[0], 0.0, 0.000001));
-  assert(nearlyEqual(right_only_out_right[0], 0.65, 0.000001));
+  CC_CHECK(processor->process(right_only_process) == Steinberg::kResultOk);
+  CC_CHECK(nearlyEqual(right_only_out_left[0], 0.0, 0.000001));
+  CC_CHECK(nearlyEqual(right_only_out_right[0], 0.65, 0.000001));
 
+  processor->setActive(false);
+  Steinberg::Vst::SpeakerArrangement mono_arrangement = Steinberg::Vst::SpeakerArr::kMono;
+  Steinberg::Vst::SpeakerArrangement stereo_arrangement = Steinberg::Vst::SpeakerArr::kStereo;
+  CC_CHECK(processor->setBusArrangements(&mono_arrangement, 1, &stereo_arrangement, 1) ==
+           Steinberg::kResultOk);
+  CC_CHECK(processor->setupProcessing(setup) == Steinberg::kResultOk);
+  CC_CHECK(processor->setActive(true) == Steinberg::kResultOk);
   std::vector<float> mono_input(8, 0.0F);
   mono_input[0] = 0.37F;
   std::vector<float> mono_out_left(8, 0.0F);
@@ -260,20 +267,20 @@ int main() {
   mono_process.inputs = &mono_inputs;
   mono_process.outputs = &mono_outputs;
 
-  assert(processor->process(mono_process) == Steinberg::kResultOk);
-  assert(nearlyEqual(mono_out_left[0], 0.37, 0.000001));
-  assert(nearlyEqual(mono_out_right[0], 0.37, 0.000001));
+  CC_CHECK(processor->process(mono_process) == Steinberg::kResultOk);
+  CC_CHECK(nearlyEqual(mono_out_left[0], 0.37, 0.000001));
+  CC_CHECK(nearlyEqual(mono_out_right[0], 0.37, 0.000001));
 
   Steinberg::MemoryStream saved_state;
-  assert(processor->getState(&saved_state) == Steinberg::kResultOk);
+  CC_CHECK(processor->getState(&saved_state) == Steinberg::kResultOk);
   Steinberg::int64 reset = 0;
-  assert(saved_state.seek(0, Steinberg::IBStream::kIBSeekSet, &reset) ==
+  CC_CHECK(saved_state.seek(0, Steinberg::IBStream::kIBSeekSet, &reset) ==
          Steinberg::kResultOk);
-  assert(controller->setComponentState(&saved_state) == Steinberg::kResultOk);
+  CC_CHECK(controller->setComponentState(&saved_state) == Steinberg::kResultOk);
   const auto expected_dry_public =
       modernPublicParameterArrayFromState(dry_state.state);
   for (Steinberg::int32 index = 0; index < 12; ++index) {
-    assert(nearlyEqual(controller->getParamNormalized(index),
+    CC_CHECK(nearlyEqual(controller->getParamNormalized(index),
                        expected_dry_public[index]));
   }
 

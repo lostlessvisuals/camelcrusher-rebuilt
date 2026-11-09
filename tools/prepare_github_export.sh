@@ -6,12 +6,15 @@ repo_root="$(cd "$script_dir/.." && pwd)"
 export_root="${1:-$repo_root/open-source-export}"
 export_repo="$export_root/camelcrusher-rebuilt"
 
-rm -rf "$export_repo"
+if [[ -e "$export_repo" ]]; then
+  echo "Refusing to replace an existing export. Choose a new export directory." >&2
+  exit 1
+fi
 mkdir -p "$export_root"
 
 rsync -a \
-  --exclude 'build/' \
-  --exclude 'build-release/' \
+  --exclude '/build*/' \
+  --exclude '.git/' \
   --exclude 'release/' \
   --exclude 'open-source-export/' \
   --exclude 'reference/' \

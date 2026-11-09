@@ -1,5 +1,6 @@
 /build/
 /build-release/
+/build*/
 /release/
 /open-source-export/
 .DS_Store

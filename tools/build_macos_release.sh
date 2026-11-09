@@ -41,7 +41,8 @@ metadata_value() {
 sign_bundle_if_possible() {
   local target="$1"
   if command -v codesign >/dev/null 2>&1; then
-    codesign --force --sign "$codesign_identity" --deep --timestamp=none "$target" >/dev/null 2>&1 || true
+    codesign --force --sign "$codesign_identity" --deep --timestamp=none "$target"
+    codesign --verify --deep --strict "$target"
   fi
 }
 
@@ -116,6 +117,14 @@ fi
 
 configure_au_component_plist
 
+for format in vst2 vst3; do
+  component_plist="$stage_dir/$format-components.plist"
+  pkgbuild --analyze --root "$payload_dir/$format" "$component_plist" >/dev/null
+  /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$component_plist"
+  /usr/libexec/PlistBuddy -c "Set :0:BundleIsVersionChecked false" "$component_plist"
+  /usr/libexec/PlistBuddy -c "Set :0:BundleOverwriteAction upgrade" "$component_plist"
+done
+
 sign_bundle_if_possible "$vst3_payload_root/${plugin_name}.vst3"
 sign_bundle_if_possible "$vst2_payload_root/${vst2_bundle_name}.vst"
 
@@ -150,6 +159,7 @@ pkgbuild \
 
 pkgbuild \
   --root "$payload_dir/vst3" \
+  --component-plist "$stage_dir/vst3-components.plist" \
   --identifier "$(metadata_value CAMELCRUSHER_INSTALLER_VST3_PKG_IDENTIFIER)" \
   --version "$release_version" \
   --install-location "/" \
@@ -157,6 +167,7 @@ pkgbuild \
 
 pkgbuild \
   --root "$payload_dir/vst2" \
+  --component-plist "$stage_dir/vst2-components.plist" \
   --identifier "$(metadata_value CAMELCRUSHER_INSTALLER_VST2_PKG_IDENTIFIER)" \
   --version "$(metadata_value CAMELCRUSHER_VST2_LEGACY_VERSION_STRING)" \
   --install-location "/" \
@@ -168,8 +179,8 @@ ${project_title} ${release_version}
 
 This release installs the same local plug-in family currently used in development:
 - Audio Unit via ${host_app_install_name}
-- VST3 as ${plugin_name}.vst3
 - VST2 as ${vst2_bundle_name}.vst
+- VST3 as ${plugin_name}.vst3
 
 The VST2 option is intended for legacy-session compatibility on Apple Silicon Macs.
 EOF
@@ -200,7 +211,13 @@ else
   mv "$unsigned_installer_path" "$installer_path"
 fi
 
+bash "$repo_root/tools/validate_macos_package.sh" "$installer_path" "$build_dir"
+
 (cd "$stage_dir" && shasum -a 256 "$(basename "$installer_path")" >SHA256SUMS.txt)
+
+if git -C "$repo_root" rev-parse --verify HEAD >/dev/null 2>&1; then
+  git -C "$repo_root" rev-parse HEAD > "$stage_dir/SOURCE_COMMIT.txt"
+fi
 
 rsync -a --delete "$stage_dir"/ "$final_stage_dir"/
 

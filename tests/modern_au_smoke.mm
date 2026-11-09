@@ -1,4 +1,5 @@
 #import "camelcrusher_recalled/CamelCrusherRecalledAudioUnit.h"
+#import <AVFoundation/AVFoundation.h>
 
 #include "camelcrusher_recalled/LegacyChunk.h"
 #include "camelcrusher_recalled/LegacyImport.h"
@@ -10,7 +11,7 @@
 #import <Foundation/Foundation.h>
 
 #include <algorithm>
-#include <cassert>
+#include "TestSupport.h"
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -71,32 +72,32 @@ int main() {
             initWithComponentDescription:CamelCrusherRecalledAudioUnit.componentDescription
                                  options:kAudioComponentInstantiation_LoadInProcess
                                    error:&error];
-    assert(unit != nil);
-    assert(error == nil);
+    CC_CHECK(unit != nil);
+    CC_CHECK(error == nil);
 
-    assert(unit.parameterTree != nil);
-    assert(unit.parameterTree.allParameters.count == 12U);
-    assert([[unit parametersForOverviewWithCount:4] count] == 4U);
-    assert(unit.channelCapabilities.count == 2U);
-    assert(unit.supportsUserPresets);
-    assert(unit.providesUserInterface);
-    assert(unit.factoryPresets.count == 20U);
-    assert(unit.currentPreset == nil);
-    assert([unit.factoryPresets.firstObject.name isEqualToString:@"Annihilate"]);
-    assert([unit.factoryPresets.lastObject.name isEqualToString:@"Turn it to 11"]);
+    CC_CHECK(unit.parameterTree != nil);
+    CC_CHECK(unit.parameterTree.allParameters.count == 12U);
+    CC_CHECK([[unit parametersForOverviewWithCount:4] count] == 4U);
+    CC_CHECK(unit.channelCapabilities.count == 2U);
+    CC_CHECK(unit.supportsUserPresets);
+    CC_CHECK(unit.providesUserInterface);
+    CC_CHECK(unit.factoryPresets.count == 20U);
+    CC_CHECK(unit.currentPreset == nil);
+    CC_CHECK([unit.factoryPresets.firstObject.name isEqualToString:@"Annihilate"]);
+    CC_CHECK([unit.factoryPresets.lastObject.name isEqualToString:@"Turn it to 11"]);
 
     AUParameter* dist_on = [unit.parameterTree parameterWithAddress:0];
     AUParameter* master_mix = [unit.parameterTree parameterWithAddress:10];
     AUParameter* master_volume = [unit.parameterTree parameterWithAddress:11];
-    assert(dist_on != nil);
-    assert(master_mix != nil);
-    assert(master_volume != nil);
+    CC_CHECK(dist_on != nil);
+    CC_CHECK(master_mix != nil);
+    CC_CHECK(master_volume != nil);
 
     dist_on.value = 1.0F;
     master_mix.value = 0.75F;
     master_volume.value = 0.60F;
-    assert(nearlyEqual(dist_on.value, 1.0F));
-    assert(nearlyEqual(master_mix.value, 0.75F));
+    CC_CHECK(nearlyEqual(dist_on.value, 1.0F));
+    CC_CHECK(nearlyEqual(master_mix.value, 0.75F));
 
     __block AUViewControllerBase* requested_view_controller = nil;
     dispatch_semaphore_t view_controller_semaphore = dispatch_semaphore_create(0);
@@ -105,30 +106,30 @@ int main() {
       requested_view_controller = viewController;
       dispatch_semaphore_signal(view_controller_semaphore);
     }];
-    assert(dispatch_semaphore_wait(view_controller_semaphore,
+    CC_CHECK(dispatch_semaphore_wait(view_controller_semaphore,
                                    dispatch_time(DISPATCH_TIME_NOW,
                                                  2 * NSEC_PER_SEC)) == 0);
-    assert(requested_view_controller != nil);
+    CC_CHECK(requested_view_controller != nil);
     [requested_view_controller loadView];
-    assert(requested_view_controller.view != nil);
-    assert(requested_view_controller.view.frame.size.width > 0.0);
-    assert(requested_view_controller.view.frame.size.height > 0.0);
+    CC_CHECK(requested_view_controller.view != nil);
+    CC_CHECK(requested_view_controller.view.frame.size.width > 0.0);
+    CC_CHECK(requested_view_controller.view.frame.size.height > 0.0);
 
     NSDictionary<NSString*, id>* default_state = unit.fullState;
     NSData* default_blob = default_state[CamelCrusherRecalledAUStateBlobKey];
-    assert(default_blob != nil);
-    assert(default_blob.length > 0U);
+    CC_CHECK(default_blob != nil);
+    CC_CHECK(default_blob.length > 0U);
     const AudioComponentDescription component_description =
         CamelCrusherRecalledAudioUnit.componentDescription;
-    assert([default_state[CamelCrusherRecalledAUClassInfoTypeKey]
+    CC_CHECK([default_state[CamelCrusherRecalledAUClassInfoTypeKey]
         isEqual:@(component_description.componentType)]);
-    assert([default_state[CamelCrusherRecalledAUClassInfoSubtypeKey]
+    CC_CHECK([default_state[CamelCrusherRecalledAUClassInfoSubtypeKey]
         isEqual:@(component_description.componentSubType)]);
-    assert([default_state[CamelCrusherRecalledAUClassInfoManufacturerKey]
+    CC_CHECK([default_state[CamelCrusherRecalledAUClassInfoManufacturerKey]
         isEqual:@(component_description.componentManufacturer)]);
-    assert([default_state[CamelCrusherRecalledAUClassInfoPresetNumberKey]
+    CC_CHECK([default_state[CamelCrusherRecalledAUClassInfoPresetNumberKey]
         isEqual:@(-1)]);
-    assert([default_state[CamelCrusherRecalledAUClassInfoNameKey]
+    CC_CHECK([default_state[CamelCrusherRecalledAUClassInfoNameKey]
         isEqualToString:@"Current State"]);
 
     LegacyChunk synthetic_chunk;
@@ -146,22 +147,22 @@ int main() {
         [NSData dataWithBytes:serialized.data() length:serialized.size()];
     unit.fullState = @{CamelCrusherRecalledAUStateBlobKey : imported_blob};
 
-    assert(unit.factoryPresets.count == 2U);
-    assert(unit.currentPreset != nil);
-    assert(unit.currentPreset.number == 1);
-    assert([unit.currentPreset.name isEqualToString:@"Driven"]);
+    CC_CHECK(unit.factoryPresets.count == 2U);
+    CC_CHECK(unit.currentPreset != nil);
+    CC_CHECK(unit.currentPreset.number == 1);
+    CC_CHECK([unit.currentPreset.name isEqualToString:@"Driven"]);
 
     NSDictionary<NSString*, id>* imported_state = unit.fullState;
-    assert([imported_state[CamelCrusherRecalledAUClassInfoPresetNumberKey]
+    CC_CHECK([imported_state[CamelCrusherRecalledAUClassInfoPresetNumberKey]
         isEqual:@1]);
-    assert([imported_state[CamelCrusherRecalledAUClassInfoNameKey]
+    CC_CHECK([imported_state[CamelCrusherRecalledAUClassInfoNameKey]
         isEqualToString:@"Driven"]);
 
     AUAudioUnitPreset* neutral_preset = unit.factoryPresets.firstObject;
     unit.currentPreset = neutral_preset;
-    assert(unit.currentPreset.number == 0);
-    assert([unit.currentPreset.name isEqualToString:@"Neutral"]);
-    assert(nearlyEqual(master_mix.value,
+    CC_CHECK(unit.currentPreset.number == 0);
+    CC_CHECK([unit.currentPreset.name isEqualToString:@"Neutral"]);
+    CC_CHECK(nearlyEqual(master_mix.value,
                        synthetic_chunk.programs[0].parameter_values[10]));
 
     unit.fullState = @{
@@ -169,13 +170,13 @@ int main() {
       CamelCrusherRecalledAUClassInfoNameKey : @"Ableton Import",
       CamelCrusherRecalledAUClassInfoPresetNumberKey : @(-19),
     };
-    assert(unit.currentPreset != nil);
-    assert(unit.currentPreset.number == -19);
-    assert([unit.currentPreset.name isEqualToString:@"Ableton Import"]);
+    CC_CHECK(unit.currentPreset != nil);
+    CC_CHECK(unit.currentPreset.number == -19);
+    CC_CHECK([unit.currentPreset.name isEqualToString:@"Ableton Import"]);
     NSDictionary<NSString*, id>* user_preset_state = unit.fullState;
-    assert([user_preset_state[CamelCrusherRecalledAUClassInfoPresetNumberKey]
+    CC_CHECK([user_preset_state[CamelCrusherRecalledAUClassInfoPresetNumberKey]
         isEqual:@(-19)]);
-    assert([user_preset_state[CamelCrusherRecalledAUClassInfoNameKey]
+    CC_CHECK([user_preset_state[CamelCrusherRecalledAUClassInfoNameKey]
         isEqualToString:@"Ableton Import"]);
 
     NSString* preset_dir = [NSTemporaryDirectory()
@@ -184,25 +185,25 @@ int main() {
     AUAudioUnitPreset* saved_user_preset = [AUAudioUnitPreset new];
     saved_user_preset.number = -23;
     saved_user_preset.name = @"Smoke Imported";
-    assert([unit saveUserPreset:saved_user_preset error:&error]);
-    assert(error == nil);
+    CC_CHECK([unit saveUserPreset:saved_user_preset error:&error]);
+    CC_CHECK(error == nil);
     NSArray<AUAudioUnitPreset*>* user_presets = unit.userPresets;
-    assert(user_presets.count == 1U);
-    assert([user_presets.firstObject.name isEqualToString:@"Smoke Imported"]);
+    CC_CHECK(user_presets.count == 1U);
+    CC_CHECK([user_presets.firstObject.name isEqualToString:@"Smoke Imported"]);
     NSDictionary<NSString*, id>* saved_preset_state =
         [unit presetStateFor:user_presets.firstObject error:&error];
-    assert(saved_preset_state != nil);
-    assert(error == nil);
+    CC_CHECK(saved_preset_state != nil);
+    CC_CHECK(error == nil);
     unit.currentPreset = user_presets.firstObject;
-    assert(unit.currentPreset.number == -23);
-    assert([unit.currentPreset.name isEqualToString:@"Smoke Imported"]);
+    CC_CHECK(unit.currentPreset.number == -23);
+    CC_CHECK([unit.currentPreset.name isEqualToString:@"Smoke Imported"]);
     AUAudioUnitPreset* missing_user_preset = [AUAudioUnitPreset new];
     missing_user_preset.number = -99;
     missing_user_preset.name = @"Missing User Preset";
     NSDictionary<NSString*, id>* missing_preset_state =
         [unit presetStateFor:missing_user_preset error:&error];
-    assert(missing_preset_state == nil);
-    assert(error != nil);
+    CC_CHECK(missing_preset_state == nil);
+    CC_CHECK(error != nil);
     unsetenv("CAMELCRUSHER_AU_USER_PRESET_DIR");
     [[NSFileManager defaultManager] removeItemAtPath:preset_dir error:nil];
 
@@ -221,11 +222,11 @@ int main() {
 
     error = nil;
     unit.maximumFramesToRender = 32;
-    assert([unit allocateRenderResourcesAndReturnError:&error]);
-    assert(error == nil);
+    CC_CHECK([unit allocateRenderResourcesAndReturnError:&error]);
+    CC_CHECK(error == nil);
 
     AURenderBlock render = unit.renderBlock;
-    assert(render != nil);
+    CC_CHECK(render != nil);
 
     std::vector<float> input_left(16, 0.0F);
     std::vector<float> input_right(16, 0.0F);
@@ -269,11 +270,11 @@ int main() {
 
     const auto render_status = render(&flags, &timestamp, 16, 0, &output.list,
                                       pull_input);
-    assert(render_status == noErr);
-    assert(!nearlyEqual(output_left[0], 0.7F));
-    assert(!nearlyEqual(output_right[0], 0.7F));
-    assert(peakMagnitude(output_left) <= 1.0F);
-    assert(peakMagnitude(output_right) <= 1.0F);
+    CC_CHECK(render_status == noErr);
+    CC_CHECK(!nearlyEqual(output_left[0], 0.7F));
+    CC_CHECK(!nearlyEqual(output_right[0], 0.7F));
+    CC_CHECK(peakMagnitude(output_left) <= 1.0F);
+    CC_CHECK(peakMagnitude(output_right) <= 1.0F);
 
     [unit reset];
     std::fill(input_left.begin(), input_left.end(), 0.0F);
@@ -300,48 +301,21 @@ int main() {
 
     const auto right_only_status = render(&flags, &timestamp, 16, 0,
                                           &output.list, right_only_pull_input);
-    assert(right_only_status == noErr);
-    assert(nearlyEqual(output_left[0], 0.0F, 0.000001F));
-    assert(nearlyEqual(output_left[2], 0.0F, 0.000001F));
-    assert(!nearlyEqual(output_right[0], 0.0F));
-    assert(!nearlyEqual(output_right[2], 0.0F));
+    CC_CHECK(right_only_status == noErr);
+    CC_CHECK(nearlyEqual(output_left[0], 0.0F, 0.000001F));
+    CC_CHECK(nearlyEqual(output_left[2], 0.0F, 0.000001F));
+    CC_CHECK(!nearlyEqual(output_right[0], 0.0F));
+    CC_CHECK(!nearlyEqual(output_right[2], 0.0F));
 
-    [unit reset];
-    std::vector<float> interleaved_input(32, 0.0F);
-    std::vector<float> interleaved_output(32, 0.0F);
-    interleaved_input[1] = 0.65F;
-    interleaved_input[5] = -0.30F;
-
-    InterleavedStereoBufferList interleaved{};
-    interleaved.list.mNumberBuffers = 1;
-    interleaved.list.mBuffers[0].mNumberChannels = 2;
-    interleaved.list.mBuffers[0].mDataByteSize =
-        static_cast<UInt32>(interleaved_output.size() * sizeof(float));
-    interleaved.list.mBuffers[0].mData = interleaved_output.data();
-
-    AURenderPullInputBlock interleaved_pull_input =
-        ^AUAudioUnitStatus(AudioUnitRenderActionFlags* action_flags,
-                           const AudioTimeStamp* pull_timestamp,
-                           AUAudioFrameCount frame_count,
-                           NSInteger input_bus_number,
-                           AudioBufferList* input_data) {
-          (void)action_flags;
-          (void)pull_timestamp;
-          (void)input_bus_number;
-          std::memcpy(input_data->mBuffers[0].mData, interleaved_input.data(),
-                      frame_count * 2 * sizeof(float));
-          return noErr;
-        };
-
-    const auto interleaved_status =
-        render(&flags, &timestamp, 16, 0, &interleaved.list,
-               interleaved_pull_input);
-    assert(interleaved_status == noErr);
-    assert(nearlyEqual(interleaved_output[0], 0.0F, 0.000001F));
-    assert(!nearlyEqual(interleaved_output[1], 0.0F));
-    assert(nearlyEqual(interleaved_output[4], 0.0F, 0.000001F));
-    assert(!nearlyEqual(interleaved_output[5], 0.0F));
-
+    [unit deallocateRenderResources];
+    AVAudioFormat* interleaved_format = [[AVAudioFormat alloc]
+        initWithCommonFormat:AVAudioPCMFormatFloat32 sampleRate:44100.0
+        channels:2 interleaved:YES];
+    CC_CHECK(![unit.inputBusses[0] setFormat:interleaved_format error:&error]);
+    CC_CHECK(error.code == kAudioUnitErr_FormatNotSupported);
+    error = nil;
+    CC_CHECK(![unit.outputBusses[0] setFormat:interleaved_format error:&error]);
+    CC_CHECK(error.code == kAudioUnitErr_FormatNotSupported);
     [unit deallocateRenderResources];
   }
 

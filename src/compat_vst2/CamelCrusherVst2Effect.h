@@ -8,6 +8,7 @@
 #include "audioeffectx.h"
 
 #include <cstddef>
+#include <array>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -24,6 +25,9 @@ class CamelCrusherVst2Effect final : public AudioEffectX {
   void resume() override;
   void suspend() override;
 
+  void DECLARE_VST_DEPRECATED(process)(float** inputs,
+                                       float** outputs,
+                                       VstInt32 sample_frames) override;
   void processReplacing(float** inputs,
                         float** outputs,
                         VstInt32 sample_frames) override;
@@ -54,8 +58,16 @@ class CamelCrusherVst2Effect final : public AudioEffectX {
   VstInt32 canDo(char* text) override;
   bool getInputProperties(VstInt32 index, VstPinProperties* properties) override;
   bool getOutputProperties(VstInt32 index, VstPinProperties* properties) override;
+  bool setSpeakerArrangement(VstSpeakerArrangement* pluginInput,
+                             VstSpeakerArrangement* pluginOutput) override;
+  bool getSpeakerArrangement(VstSpeakerArrangement** pluginInput,
+                             VstSpeakerArrangement** pluginOutput) override;
 
  private:
+  void processFloatBuffers(float** inputs,
+                           float** outputs,
+                           VstInt32 sample_frames,
+                           bool accumulate);
   void prepareProcessor();
   void adoptProgram(VstInt32 program);
   void syncCurrentProgramState();
@@ -74,7 +86,11 @@ class CamelCrusherVst2Effect final : public AudioEffectX {
   LegacyPresetBank preset_bank_;
   LegacyState current_state_{};
   ModernPluginState processing_state_{};
+  VstSpeakerArrangement input_arrangement_{};
+  VstSpeakerArrangement output_arrangement_{};
   ModernProcessor processor_;
+  std::array<float, 1024> process_left_{};
+  std::array<float, 1024> process_right_{};
   std::vector<std::byte> chunk_storage_;
 };
 

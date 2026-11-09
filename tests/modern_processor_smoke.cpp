@@ -5,7 +5,7 @@
 #include "camelcrusher_recalled/ModernRuntime.h"
 
 #include <algorithm>
-#include <cassert>
+#include "TestSupport.h"
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -67,8 +67,8 @@ int main() {
 
   const auto encoded = encodeLegacyChunk(synthetic_chunk);
   const auto decoded = decodeLegacyChunk(encoded);
-  assert(decoded.ok());
-  assert(decoded.chunk.has_value());
+  CC_CHECK(decoded.ok());
+  CC_CHECK(decoded.chunk.has_value());
 
   auto explicit_values = decoded.chunk->programs[1].parameter_values;
   explicit_values[0] = 1.0F;   // dist on
@@ -88,19 +88,19 @@ int main() {
   ModernPluginState modern_state = modernPluginStateFromLegacyImport(imported);
   const auto controls = modernProcessingControlsFromState(modern_state);
 
-  assert(controls.distortion_enabled);
-  assert(controls.filter_enabled);
-  assert(controls.compressor_enabled);
-  assert(controls.master_section_enabled);
-  assert(!controls.global_bypass);
-  assert(!controls.compressor_phat_enabled);
-  assert(controls.distortion_pre_gain > 1.0F);
-  assert(controls.distortion_mechanical_amount > 0.0F);
-  assert(controls.distortion_tube_amount > 0.0F);
-  assert(controls.filter_cutoff_hz < 1000.0F);
-  assert(controls.filter_drive > 1.0F);
-  assert(controls.wet_mix > 0.0F && controls.wet_mix < 1.0F);
-  assert(controls.output_gain > 1.0F);
+  CC_CHECK(controls.distortion_enabled);
+  CC_CHECK(controls.filter_enabled);
+  CC_CHECK(controls.compressor_enabled);
+  CC_CHECK(controls.master_section_enabled);
+  CC_CHECK(!controls.global_bypass);
+  CC_CHECK(!controls.compressor_phat_enabled);
+  CC_CHECK(controls.distortion_pre_gain > 1.0F);
+  CC_CHECK(controls.distortion_mechanical_amount > 0.0F);
+  CC_CHECK(controls.distortion_tube_amount > 0.0F);
+  CC_CHECK(controls.filter_cutoff_hz < 1000.0F);
+  CC_CHECK(controls.filter_drive > 1.0F);
+  CC_CHECK(controls.wet_mix > 0.0F && controls.wet_mix < 1.0F);
+  CC_CHECK(controls.output_gain > 1.0F);
 
   ModernProcessor processor;
   processor.prepare(ModernProcessSpec{
@@ -120,11 +120,11 @@ int main() {
                          },
                          modern_state);
 
-  assert(!nearlyEqual(left[0], 0.8F));
-  assert(!nearlyEqual(right[0], 0.8F));
-  assert(nearlyEqual(left[0], right[0], 0.00001F));
-  assert(peakMagnitude(left) <= 1.0F);
-  assert(peakMagnitude(right) <= 1.0F);
+  CC_CHECK(!nearlyEqual(left[0], 0.8F));
+  CC_CHECK(!nearlyEqual(right[0], 0.8F));
+  CC_CHECK(nearlyEqual(left[0], right[0], 0.00001F));
+  CC_CHECK(peakMagnitude(left) <= 1.0F);
+  CC_CHECK(peakMagnitude(right) <= 1.0F);
 
   processor.reset();
   std::vector<float> linked_left(24, 0.35F);
@@ -137,8 +137,8 @@ int main() {
                          },
                          modern_state);
 
-  assert(linked_left[0] > linked_right[0]);
-  assert(linked_right[1] < 0.35F);
+  CC_CHECK(linked_left[0] > linked_right[0]);
+  CC_CHECK(linked_right[1] < 0.35F);
 
   processor.reset();
   ModernPluginState right_only_state = makeDefaultModernPluginState();
@@ -166,9 +166,9 @@ int main() {
                          },
                          right_only_state);
 
-  assert(peakMagnitude(right_only_left) < 0.000001F);
-  assert(!nearlyEqual(right_only_right[0], 0.0F));
-  assert(!nearlyEqual(right_only_right[2], 0.0F));
+  CC_CHECK(peakMagnitude(right_only_left) < 0.000001F);
+  CC_CHECK(!nearlyEqual(right_only_right[0], 0.0F));
+  CC_CHECK(!nearlyEqual(right_only_right[2], 0.0F));
 
   processor.reset();
   ModernPluginState bypass_state = modern_state;
@@ -187,8 +187,8 @@ int main() {
                          bypass_state);
 
   for (std::size_t index = 0; index < dry_reference.size(); ++index) {
-    assert(nearlyEqual(bypass_left[index], dry_reference[index], 0.00001F));
-    assert(nearlyEqual(bypass_right[index], dry_reference[index], 0.00001F));
+    CC_CHECK(nearlyEqual(bypass_left[index], dry_reference[index], 0.00001F));
+    CC_CHECK(nearlyEqual(bypass_right[index], dry_reference[index], 0.00001F));
   }
 
   processor.reset();
@@ -230,10 +230,10 @@ int main() {
                          },
                          phat_compressor_state);
 
-  assert(sumAbsoluteDifference(smooth_left, phat_left) > 0.25F);
-  assert(sumAbsoluteDifference(smooth_right, phat_right) > 0.25F);
-  assert(peakMagnitude(phat_left) <= 1.0F);
-  assert(peakMagnitude(phat_right) <= 1.0F);
+  CC_CHECK(sumAbsoluteDifference(smooth_left, phat_left) > 0.25F);
+  CC_CHECK(sumAbsoluteDifference(smooth_right, phat_right) > 0.25F);
+  CC_CHECK(peakMagnitude(phat_left) <= 1.0F);
+  CC_CHECK(peakMagnitude(phat_right) <= 1.0F);
 
   std::cout << "Modern processor smoke test passed\n";
   return 0;

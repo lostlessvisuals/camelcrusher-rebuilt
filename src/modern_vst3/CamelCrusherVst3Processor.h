@@ -16,6 +16,7 @@ class CamelCrusherVst3Processor : public Steinberg::Vst::AudioEffect {
 
   Steinberg::tresult PLUGIN_API initialize(Steinberg::FUnknown* context) SMTG_OVERRIDE;
   Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) SMTG_OVERRIDE;
+  Steinberg::tresult PLUGIN_API setProcessing(Steinberg::TBool state) SMTG_OVERRIDE;
   Steinberg::tresult PLUGIN_API setupProcessing(
       Steinberg::Vst::ProcessSetup& new_setup) SMTG_OVERRIDE;
   Steinberg::tresult PLUGIN_API setBusArrangements(
@@ -33,9 +34,9 @@ class CamelCrusherVst3Processor : public Steinberg::Vst::AudioEffect {
  private:
   void applyParameterChanges(
       Steinberg::Vst::IParameterChanges* parameter_changes);
-  void clearOutputs(Steinberg::Vst::ProcessData& data) const;
 
   ModernPluginRuntime runtime_;
+  std::size_t input_channel_count_ = 2;
   std::size_t channel_count_ = 2;
 };
 

@@ -6,7 +6,7 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
+#include "TestSupport.h"
 #include <cmath>
 #include <cstddef>
 #include <filesystem>
@@ -45,7 +45,7 @@ LegacyProgram makeProgram(const std::string& name, float seed) {
 
 std::string readFile(const std::filesystem::path& path) {
   std::ifstream stream(path);
-  assert(stream.good());
+  CC_CHECK(stream.good());
   return std::string(std::istreambuf_iterator<char>(stream),
                      std::istreambuf_iterator<char>());
 }
@@ -54,20 +54,20 @@ std::string extractFirstQuotedValue(const std::string& content,
                                     const std::string& key) {
   const auto marker = "\"" + key + "\": \"";
   const auto start = content.find(marker);
-  assert(start != std::string::npos);
+  CC_CHECK(start != std::string::npos);
   const auto value_begin = start + marker.size();
   const auto value_end = content.find('"', value_begin);
-  assert(value_end != std::string::npos);
+  CC_CHECK(value_end != std::string::npos);
   return content.substr(value_begin, value_end - value_begin);
 }
 
 int extractFirstIntegerValue(const std::string& content, const std::string& key) {
   const auto marker = "\"" + key + "\": ";
   const auto start = content.find(marker);
-  assert(start != std::string::npos);
+  CC_CHECK(start != std::string::npos);
   const auto value_begin = start + marker.size();
   const auto value_end = content.find_first_not_of("-0123456789", value_begin);
-  assert(value_end != std::string::npos);
+  CC_CHECK(value_end != std::string::npos);
   return std::stoi(content.substr(value_begin, value_end - value_begin));
 }
 
@@ -82,7 +82,7 @@ std::vector<float> extractManualValues(const std::string& content,
     values.push_back(std::stof((*it)[1].str()));
   }
 
-  assert(values.size() == expected_count);
+  CC_CHECK(values.size() == expected_count);
   return values;
 }
 
@@ -98,50 +98,50 @@ void assertRealFixtureRoundTrip(const std::filesystem::path& fixture_path) {
       extractManualValues(content, kLegacyParameterCount);
 
   const auto decode_result = decodeLegacyChunkHex(buffer_hex);
-  assert(decode_result.ok());
-  assert(decode_result.chunk.has_value());
+  CC_CHECK(decode_result.ok());
+  CC_CHECK(decode_result.chunk.has_value());
 
   const auto& chunk = decode_result.chunk.value();
-  assert(isLikelyLegacyChunk(chunk));
-  assert(chunk.programs.size() == 20U);
-  assert(program_number >= 0);
-  assert(static_cast<std::size_t>(program_number) < chunk.programs.size());
+  CC_CHECK(isLikelyLegacyChunk(chunk));
+  CC_CHECK(chunk.programs.size() == 20U);
+  CC_CHECK(program_number >= 0);
+  CC_CHECK(static_cast<std::size_t>(program_number) < chunk.programs.size());
 
   const auto& selected_program =
       chunk.programs[static_cast<std::size_t>(program_number)];
   for (std::size_t index = 0; index < parameter_values.size(); ++index) {
-    assert(nearlyEqual(selected_program.parameter_values[index],
+    CC_CHECK(nearlyEqual(selected_program.parameter_values[index],
                        parameter_values[index]));
   }
 
   const auto imported_state =
       importLegacyState(chunk, program_number, parameter_values);
-  assert(imported_state.current_state_source ==
+  CC_CHECK(imported_state.current_state_source ==
          LegacyCurrentStateSource::kExplicitParameters);
-  assert(imported_state.selected_program_index.has_value());
-  assert(imported_state.selected_program_name == selected_program.name);
-  assert(imported_state.selected_program_matches_explicit_parameters);
-  assert(imported_state.parameter_mismatches.empty());
-  assert(imported_state.preset_bank.presets.size() == 20U);
+  CC_CHECK(imported_state.selected_program_index.has_value());
+  CC_CHECK(imported_state.selected_program_name == selected_program.name);
+  CC_CHECK(imported_state.selected_program_matches_explicit_parameters);
+  CC_CHECK(imported_state.parameter_mismatches.empty());
+  CC_CHECK(imported_state.preset_bank.presets.size() == 20U);
   const auto* selected_preset = legacyPresetAt(
       imported_state.preset_bank, static_cast<std::size_t>(program_number));
-  assert(selected_preset != nullptr);
-  assert(selected_preset->name == selected_program.name);
+  CC_CHECK(selected_preset != nullptr);
+  CC_CHECK(selected_preset->name == selected_program.name);
 
   const auto imported_values = importedStateToArray(imported_state);
   const auto selected_preset_values = legacyStateToArray(selected_preset->state);
   for (std::size_t index = 0; index < parameter_values.size(); ++index) {
-    assert(nearlyEqual(imported_values[index], parameter_values[index]));
-    assert(nearlyEqual(selected_preset_values[index], parameter_values[index]));
+    CC_CHECK(nearlyEqual(imported_values[index], parameter_values[index]));
+    CC_CHECK(nearlyEqual(selected_preset_values[index], parameter_values[index]));
   }
 
   const auto reencoded = encodeLegacyChunk(chunk);
   const auto redecode_result = decodeLegacyChunk(reencoded);
-  assert(redecode_result.ok());
-  assert(redecode_result.chunk.has_value());
-  assert(redecode_result.chunk->programs.size() == chunk.programs.size());
-  assert(redecode_result.chunk->programs.front().name == chunk.programs.front().name);
-  assert(redecode_result.chunk->programs.back().name == chunk.programs.back().name);
+  CC_CHECK(redecode_result.ok());
+  CC_CHECK(redecode_result.chunk.has_value());
+  CC_CHECK(redecode_result.chunk->programs.size() == chunk.programs.size());
+  CC_CHECK(redecode_result.chunk->programs.front().name == chunk.programs.front().name);
+  CC_CHECK(redecode_result.chunk->programs.back().name == chunk.programs.back().name);
 }
 
 }  // namespace
@@ -153,19 +153,19 @@ int main() {
 
   const auto encoded = encodeLegacyChunk(synthetic_chunk);
   const auto decoded = decodeLegacyChunk(encoded);
-  assert(decoded.ok());
-  assert(decoded.chunk.has_value());
-  assert(decoded.chunk->programs.size() == 2U);
-  assert(decoded.chunk->programs[0].name == "First Program");
-  assert(nearlyEqual(decoded.chunk->programs[1].parameter_values[3], 0.29375F));
+  CC_CHECK(decoded.ok());
+  CC_CHECK(decoded.chunk.has_value());
+  CC_CHECK(decoded.chunk->programs.size() == 2U);
+  CC_CHECK(decoded.chunk->programs[0].name == "First Program");
+  CC_CHECK(nearlyEqual(decoded.chunk->programs[1].parameter_values[3], 0.29375F));
 
   const auto imported_synthetic =
       importLegacyState(decoded.chunk.value(), 1, decoded.chunk->programs[1].parameter_values);
-  assert(imported_synthetic.current_state_source ==
+  CC_CHECK(imported_synthetic.current_state_source ==
          LegacyCurrentStateSource::kExplicitParameters);
-  assert(imported_synthetic.selected_program_index == 1U);
-  assert(imported_synthetic.selected_program_matches_explicit_parameters);
-  assert(imported_synthetic.parameter_mismatches.empty());
+  CC_CHECK(imported_synthetic.selected_program_index == 1U);
+  CC_CHECK(imported_synthetic.selected_program_matches_explicit_parameters);
+  CC_CHECK(imported_synthetic.parameter_mismatches.empty());
 
   const auto root = std::filesystem::path(CAMELCRUSHER_RECALLED_SOURCE_DIR);
   assertRealFixtureRoundTrip(

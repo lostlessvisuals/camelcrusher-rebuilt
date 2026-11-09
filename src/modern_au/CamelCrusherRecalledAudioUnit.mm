@@ -7,6 +7,7 @@
 #import <AVFoundation/AVFoundation.h>
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 #ifndef CAMELCRUSHER_AU_COMPONENT_VERSION_INT
@@ -26,6 +27,18 @@ NSString* const CamelCrusherRecalledAUClassInfoPresetNumberKey =
     @kAUPresetNumberKey;
 
 namespace {
+
+struct StereoRenderStorage {
+  std::vector<float> input;
+  std::vector<float> output;
+  std::vector<float> left;
+  std::vector<float> right;
+};
+
+struct StereoBufferList {
+  UInt32 count;
+  AudioBuffer buffers[2];
+};
 
 constexpr OSType fourCC(const char a,
                         const char b,
@@ -307,8 +320,7 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
   NSArray<AUAudioUnitPreset*>* _factoryPresets;
   AUAudioUnitPreset* _currentUserPreset;
   CamelCrusherRecalledViewController* _viewController;
-  std::vector<float> _interleavedScratchLeft;
-  std::vector<float> _interleavedScratchRight;
+  StereoRenderStorage _renderStorage;
 }
 
 - (AUParameterTree*)buildParameterTree;
@@ -378,8 +390,8 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
     return nil;
   }
 
-  _inputBus.shouldAllocateBuffer = NO;
-  _outputBus.shouldAllocateBuffer = NO;
+  _inputBus.shouldAllocateBuffer = YES;
+  _outputBus.shouldAllocateBuffer = YES;
 
   _inputBusArray =
       [[AUAudioUnitBusArray alloc] initWithAudioUnit:self
@@ -473,11 +485,11 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
 }
 
 - (BOOL)shouldChangeToFormat:(AVAudioFormat*)format forBus:(AUAudioUnitBus*)bus {
-  if (![super shouldChangeToFormat:format forBus:bus]) {
-    return NO;
-  }
-  return format.channelCount == 2 &&
-         format.commonFormat == AVAudioPCMFormatFloat32;
+  return (bus == _inputBus || bus == _outputBus) &&
+         [super shouldChangeToFormat:format forBus:bus] &&
+         !format.interleaved && format.channelCount == 2 &&
+         format.commonFormat == AVAudioPCMFormatFloat32 &&
+         std::isfinite(format.sampleRate) && format.sampleRate > 0.0;
 }
 
 - (BOOL)allocateRenderResourcesAndReturnError:
@@ -503,8 +515,10 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
           .max_block_size = maximum_frames,
           .channel_count = _outputBus.format.channelCount,
       });
-  _interleavedScratchLeft.assign(maximum_frames, 0.0F);
-  _interleavedScratchRight.assign(maximum_frames, 0.0F);
+  _renderStorage.input.assign(maximum_frames * 2, 0.0F);
+  _renderStorage.output.assign(maximum_frames * 2, 0.0F);
+  _renderStorage.left.assign(maximum_frames, 0.0F);
+  _renderStorage.right.assign(maximum_frames, 0.0F);
 
   if (![super allocateRenderResourcesAndReturnError:outError]) {
     return NO;
@@ -524,9 +538,8 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
 }
 
 - (AUInternalRenderBlock)internalRenderBlock {
-  __block CamelCrusherRuntimeBridgeRuntime* runtime = _runtime;
-  __block std::vector<float>* interleaved_left = &_interleavedScratchLeft;
-  __block std::vector<float>* interleaved_right = &_interleavedScratchRight;
+  auto* runtime = _runtime;
+  auto* storage = &_renderStorage;
   return ^AUAudioUnitStatus(AudioUnitRenderActionFlags* actionFlags,
                             const AudioTimeStamp* timestamp,
                             AUAudioFrameCount frameCount,
@@ -534,66 +547,78 @@ NSInteger normalizedUserPresetNumber(const NSInteger preset_number) {
                             AudioBufferList* outputData,
                             const AURenderEvent* realtimeEventListHead,
                             AURenderPullInputBlock pullInputBlock) {
-    (void)outputBusNumber;
     (void)realtimeEventListHead;
+    if (outputBusNumber != 0) {
+      return kAudioUnitErr_InvalidElement;
+    }
+    if (frameCount > storage->left.size()) {
+      return kAudioUnitErr_TooManyFramesToProcess;
+    }
     if (pullInputBlock == nil) {
       return kAudioUnitErr_NoConnection;
     }
-    if (outputData == nullptr || outputData->mNumberBuffers == 0) {
+    constexpr UInt32 output_count = 2;
+    if (outputData == nullptr || outputData->mNumberBuffers != output_count) {
       return kAudio_ParamError;
     }
 
-    const auto status =
-        pullInputBlock(actionFlags, timestamp, frameCount, 0, outputData);
+    // AU hosts negotiate noninterleaved Float32 stereo. Reject other layouts.
+    // Buffers are allocated before rendering; no Objective-C calls or allocation here.
+    StereoBufferList input{};
+    input.count = 2;
+    for (UInt32 channel = 0; channel < input.count; ++channel) {
+      input.buffers[channel] = {
+          1U, static_cast<UInt32>(frameCount * sizeof(float)),
+          storage->input.data() + channel * storage->left.size()};
+    }
+    auto* input_list = reinterpret_cast<AudioBufferList*>(&input);
+    const auto status = pullInputBlock(actionFlags, timestamp, frameCount, 0, input_list);
     if (status != noErr) {
       return status;
     }
-
-    float* left = nullptr;
-    float* right = nullptr;
-
-    if (outputData->mNumberBuffers >= 2 &&
-        outputData->mBuffers[0].mNumberChannels == 1 &&
-        outputData->mBuffers[1].mNumberChannels == 1) {
-      left = static_cast<float*>(outputData->mBuffers[0].mData);
-      right = static_cast<float*>(outputData->mBuffers[1].mData);
-    } else if (outputData->mNumberBuffers == 1 &&
-               outputData->mBuffers[0].mNumberChannels == 2) {
-      if (frameCount > interleaved_left->size() ||
-          frameCount > interleaved_right->size()) {
-        return kAudioUnitErr_TooManyFramesToProcess;
-      }
-
-      auto* interleaved_samples =
-          static_cast<float*>(outputData->mBuffers[0].mData);
-      if (interleaved_samples == nullptr) {
-        return kAudio_ParamError;
-      }
-
-      for (AUAudioFrameCount frame = 0; frame < frameCount; ++frame) {
-        (*interleaved_left)[frame] = interleaved_samples[frame * 2];
-        (*interleaved_right)[frame] = interleaved_samples[frame * 2 + 1];
-      }
-
-      left = interleaved_left->data();
-      right = interleaved_right->data();
-    }
-
-    if (left == nullptr || right == nullptr) {
+    if (input.count != 2) {
       return kAudio_ParamError;
     }
-
-    camelcrusher_runtime_bridge_runtime_process_stereo(
-        runtime, left, right, static_cast<size_t>(frameCount));
-
-    if (outputData->mNumberBuffers == 1 &&
-        outputData->mBuffers[0].mNumberChannels == 2) {
-      auto* interleaved_samples =
-          static_cast<float*>(outputData->mBuffers[0].mData);
-      for (AUAudioFrameCount frame = 0; frame < frameCount; ++frame) {
-        interleaved_samples[frame * 2] = (*interleaved_left)[frame];
-        interleaved_samples[frame * 2 + 1] = (*interleaved_right)[frame];
+    for (UInt32 channel = 0; channel < input.count; ++channel) {
+      const auto& buffer = input.buffers[channel];
+      constexpr UInt32 channels = 1;
+      if (buffer.mData == nullptr || buffer.mNumberChannels != channels ||
+          buffer.mDataByteSize < frameCount * sizeof(float) * channels) {
+        return kAudio_ParamError;
       }
+    }
+    const auto* input_left = static_cast<const float*>(input.buffers[0].mData);
+    const auto* input_right = static_cast<const float*>(input.buffers[1].mData);
+    const bool silent = actionFlags != nullptr &&
+                        (*actionFlags & kAudioUnitRenderAction_OutputIsSilence) != 0;
+    for (AUAudioFrameCount frame = 0; frame < frameCount; ++frame) {
+      storage->left[frame] = silent ? 0.0F : input_left[frame];
+      storage->right[frame] = silent ? 0.0F : input_right[frame];
+    }
+    camelcrusher_runtime_bridge_runtime_process_stereo(
+        runtime, storage->left.data(), storage->right.data(), frameCount);
+
+    for (UInt32 channel = 0; channel < output_count; ++channel) {
+      auto& buffer = outputData->mBuffers[channel];
+      constexpr UInt32 channels = 1;
+      const auto byte_count = static_cast<UInt32>(frameCount * sizeof(float) * channels);
+      if (buffer.mNumberChannels != channels ||
+          (buffer.mData != nullptr && buffer.mDataByteSize < byte_count)) {
+        return kAudio_ParamError;
+      }
+      if (buffer.mData == nullptr) {
+        buffer.mData = storage->output.data() + channel * storage->left.size();
+      }
+      buffer.mDataByteSize = byte_count;
+    }
+    auto* left = static_cast<float*>(outputData->mBuffers[0].mData);
+    auto* right = static_cast<float*>(outputData->mBuffers[1].mData);
+    for (AUAudioFrameCount frame = 0; frame < frameCount; ++frame) {
+      left[frame] = storage->left[frame];
+      right[frame] = storage->right[frame];
+    }
+    if (actionFlags != nullptr) {
+      *actionFlags &= ~kAudioUnitRenderAction_OutputIsSilence;
     }
     return noErr;
   };

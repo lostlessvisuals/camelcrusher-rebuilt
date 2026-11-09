@@ -6,55 +6,58 @@
 #include "pluginterfaces/vst/ivsteditcontroller.h"
 #include "public.sdk/source/vst/hosting/module.h"
 
-#include <cassert>
+#include "TestSupport.h"
+#include "Vst3StereoContract.h"
 #include <string>
 
-int main() {
+int main(int argc, char** argv) {
+  const char* bundle_path = argc == 2 ? argv[1] : CAMELCRUSHER_VST3_BUNDLE_PATH;
   std::string error;
-  assert(VST3::Hosting::Module::validateBundleStructure(
-      CAMELCRUSHER_VST3_BUNDLE_PATH, error));
+  CC_CHECK(VST3::Hosting::Module::validateBundleStructure(
+      bundle_path, error));
   auto module =
-      VST3::Hosting::Module::create(CAMELCRUSHER_VST3_BUNDLE_PATH, error);
-  assert(module != nullptr);
+      VST3::Hosting::Module::create(bundle_path, error);
+  CC_CHECK(module != nullptr);
 
   const auto factory = module->getFactory();
   const auto info = factory.info();
-  assert(info.vendor() == camelcrusher_recalled::vst3::kCamelCrusherPluginVendor);
+  CC_CHECK(info.vendor() == camelcrusher_recalled::vst3::kCamelCrusherPluginVendor);
 
   const auto classes = factory.classInfos();
-  assert(classes.size() == 2U);
+  CC_CHECK(classes.size() == 2U);
 
   bool saw_processor = false;
   bool saw_controller = false;
   for (const auto& class_info : classes) {
     if (class_info.category() == kVstAudioEffectClass) {
       saw_processor = true;
-      assert(class_info.name() ==
+      CC_CHECK(class_info.name() ==
              camelcrusher_recalled::vst3::kCamelCrusherPluginName);
-      assert(class_info.subCategoriesString() ==
+      CC_CHECK(class_info.subCategoriesString() ==
              camelcrusher_recalled::vst3::kCamelCrusherPluginSubcategories);
       auto component =
           factory.createInstance<Steinberg::Vst::IComponent>(class_info.ID());
-      assert(component != nullptr);
+      CC_CHECK(component != nullptr);
+      checkVst3Stereo(component.get());
     } else if (class_info.category() == kVstComponentControllerClass) {
       saw_controller = true;
-      assert(class_info.name() ==
+      CC_CHECK(class_info.name() ==
              camelcrusher_recalled::vst3::kCamelCrusherControllerName);
       auto controller =
           factory.createInstance<Steinberg::Vst::IEditController>(class_info.ID());
-      assert(controller != nullptr);
+      CC_CHECK(controller != nullptr);
       auto view = controller->createView(Steinberg::Vst::ViewType::kEditor);
-      assert(view != nullptr);
-      assert(view->isPlatformTypeSupported(Steinberg::kPlatformTypeNSView) ==
+      CC_CHECK(view != nullptr);
+      CC_CHECK(view->isPlatformTypeSupported(Steinberg::kPlatformTypeNSView) ==
              Steinberg::kResultTrue);
       view->release();
     }
   }
 
-  assert(saw_processor);
-  assert(saw_controller);
+  CC_CHECK(saw_processor);
+  CC_CHECK(saw_controller);
   const auto module_info_path =
-      VST3::Hosting::Module::getModuleInfoPath(CAMELCRUSHER_VST3_BUNDLE_PATH);
-  assert(static_cast<bool>(module_info_path));
+      VST3::Hosting::Module::getModuleInfoPath(bundle_path);
+  CC_CHECK(static_cast<bool>(module_info_path));
   return 0;
 }

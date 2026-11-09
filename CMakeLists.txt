@@ -359,6 +359,12 @@ if(CAMELCRUSHER_ENABLE_VST2_COMPATIBILITY)
     add_dependencies(vst2_bundle_smoke camelcrusher_vst2)
     add_test(NAME vst2_bundle_smoke COMMAND vst2_bundle_smoke)
 
+    add_executable(vst2_host_contract tests/vst2_host_contract.cpp)
+    target_compile_definitions(vst2_host_contract PRIVATE
+        CAMELCRUSHER_VST2_BINARY="${camelcrusher_vst2_bundle_dir}/Contents/MacOS/${CAMELCRUSHER_VST2_BUNDLE_NAME}")
+    add_dependencies(vst2_host_contract camelcrusher_vst2)
+    add_test(NAME vst2_host_contract COMMAND vst2_host_contract)
+
     if(APPLE)
         add_executable(vst2_editor_smoke
             tests/vst2_editor_smoke.mm
@@ -948,6 +954,13 @@ if(APPLE)
 
     add_test(NAME modern_au_smoke COMMAND modern_au_smoke)
 
+    add_executable(au_stereo_contract tests/au_stereo_contract.mm)
+    target_link_libraries(au_stereo_contract PRIVATE camelcrusher_modern_au
+        ${FOUNDATION_FRAMEWORK} ${AVFOUNDATION_FRAMEWORK} ${AUDIOTOOLBOX_FRAMEWORK})
+    target_compile_options(au_stereo_contract PRIVATE "-fobjc-arc")
+    target_link_options(au_stereo_contract PRIVATE "-Wl,-rpath,@loader_path")
+    add_test(NAME au_stereo_contract COMMAND au_stereo_contract)
+
     add_executable(modern_au_bundle_smoke
         tests/modern_au_bundle_smoke.mm
     )
@@ -966,6 +979,7 @@ if(APPLE)
     target_compile_options(modern_au_bundle_smoke PRIVATE "-fobjc-arc")
     target_compile_definitions(modern_au_bundle_smoke
         PRIVATE
+            CAMELCRUSHER_EXPECTED_BUILD=${CAMELCRUSHER_RELEASE_BUILD}
             CAMELCRUSHER_AU_BUNDLE_PATH="${CAMELCRUSHER_AU_UI_BUNDLE_DIR}"
     )
     target_link_options(modern_au_bundle_smoke PRIVATE
@@ -992,6 +1006,7 @@ if(APPLE)
     target_compile_options(modern_au_container_smoke PRIVATE "-fobjc-arc")
     target_compile_definitions(modern_au_container_smoke
         PRIVATE
+            CAMELCRUSHER_EXPECTED_BUILD=${CAMELCRUSHER_RELEASE_BUILD}
             CAMELCRUSHER_AU_HOST_APP_PATH="${CAMELCRUSHER_AU_HOST_APP_BUNDLE_DIR}"
             CAMELCRUSHER_AU_EMBEDDED_BUNDLE_PATH="${CAMELCRUSHER_AU_HOST_APP_EMBEDDED_BUNDLE_DIR}"
     )
@@ -1073,6 +1088,8 @@ endif()
 
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
+    add_test(NAME installer_aliases_unit
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_installer_aliases.py")
     add_test(
         NAME fixture_extractor_unit
         COMMAND "${Python3_EXECUTABLE}" tests/test_fixture_extractor.py

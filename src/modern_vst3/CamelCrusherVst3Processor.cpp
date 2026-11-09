@@ -33,6 +33,14 @@ Steinberg::tresult PLUGIN_API CamelCrusherVst3Processor::setActive(
   return AudioEffect::setActive(state);
 }
 
+Steinberg::tresult PLUGIN_API CamelCrusherVst3Processor::setProcessing(
+    const Steinberg::TBool state) {
+  if (state) {
+    runtime_.reset();
+  }
+  return Steinberg::kResultOk;
+}
+
 Steinberg::tresult PLUGIN_API CamelCrusherVst3Processor::setupProcessing(
     Steinberg::Vst::ProcessSetup& new_setup) {
   const auto result = AudioEffect::setupProcessing(new_setup);
@@ -53,21 +61,19 @@ Steinberg::tresult PLUGIN_API CamelCrusherVst3Processor::setBusArrangements(
     const Steinberg::int32 num_inputs,
     Steinberg::Vst::SpeakerArrangement* outputs,
     const Steinberg::int32 num_outputs) {
-  if (num_inputs != 1 || num_outputs != 1) {
+  if (num_inputs != 1 || num_outputs != 1 || inputs == nullptr || outputs == nullptr) {
     return Steinberg::kResultFalse;
   }
 
-  if (inputs[0] != outputs[0]) {
+  using namespace Steinberg::Vst;
+  if (!((inputs[0] == SpeakerArr::kMono &&
+         (outputs[0] == SpeakerArr::kMono || outputs[0] == SpeakerArr::kStereo)) ||
+        (inputs[0] == SpeakerArr::kStereo && outputs[0] == SpeakerArr::kStereo))) {
     return Steinberg::kResultFalse;
   }
 
-  if (inputs[0] != Steinberg::Vst::SpeakerArr::kMono &&
-      inputs[0] != Steinberg::Vst::SpeakerArr::kStereo) {
-    return Steinberg::kResultFalse;
-  }
-
-  channel_count_ =
-      inputs[0] == Steinberg::Vst::SpeakerArr::kMono ? 1U : 2U;
+  input_channel_count_ = inputs[0] == SpeakerArr::kMono ? 1U : 2U;
+  channel_count_ = outputs[0] == SpeakerArr::kMono ? 1U : 2U;
   return AudioEffect::setBusArrangements(inputs, num_inputs, outputs, num_outputs);
 }
 
@@ -86,35 +92,34 @@ Steinberg::tresult PLUGIN_API CamelCrusherVst3Processor::process(
 
   applyParameterChanges(data.inputParameterChanges);
 
-  if (data.numInputs == 0 || data.numOutputs == 0) {
+  if (data.numSamples == 0 || data.numInputs == 0 || data.numOutputs == 0) {
     return Steinberg::kResultOk;
+  }
+  if (data.numSamples < 0 || data.inputs == nullptr || data.outputs == nullptr) {
+    return Steinberg::kInvalidArgument;
   }
 
   auto& input = data.inputs[0];
   auto& output = data.outputs[0];
 
-  if (input.numChannels == 0 || output.numChannels == 0) {
-    return Steinberg::kResultOk;
-  }
-
-  const auto silence_mask =
-      Steinberg::Vst::getChannelMask(input.numChannels);
-  if (input.silenceFlags == silence_mask) {
-    output.silenceFlags = silence_mask;
-    clearOutputs(data);
-    return Steinberg::kResultOk;
+  if (input.numChannels != static_cast<Steinberg::int32>(input_channel_count_) ||
+      output.numChannels != static_cast<Steinberg::int32>(channel_count_)) {
+    return Steinberg::kInvalidArgument;
   }
 
   const auto sample_count = static_cast<std::size_t>(data.numSamples);
 
   if (input.channelBuffers32 == nullptr || output.channelBuffers32 == nullptr ||
-      input.channelBuffers32[0] == nullptr ||
       output.channelBuffers32[0] == nullptr) {
     return Steinberg::kResultFalse;
   }
 
   auto* left_out = output.channelBuffers32[0];
-  if (input.channelBuffers32[0] != left_out) {
+  if ((input.silenceFlags & 1U) != 0) {
+    std::fill_n(left_out, sample_count, 0.0F);
+  } else if (input.channelBuffers32[0] == nullptr) {
+    return Steinberg::kInvalidArgument;
+  } else if (input.channelBuffers32[0] != left_out) {
     std::memcpy(left_out, input.channelBuffers32[0], sample_count * sizeof(float));
   }
 
@@ -123,19 +128,28 @@ Steinberg::tresult PLUGIN_API CamelCrusherVst3Processor::process(
 
   const auto has_stereo_output =
       output.numChannels > 1 && output.channelBuffers32[1] != nullptr;
-  const auto has_stereo_input =
-      input.numChannels > 1 && input.channelBuffers32[1] != nullptr;
+  const auto has_stereo_input = input.numChannels > 1;
+
+  if (output.numChannels > 1 && !has_stereo_output) {
+    return Steinberg::kInvalidArgument;
+  }
 
   if (has_stereo_output) {
     auto* right_out = output.channelBuffers32[1];
     const auto* right_in =
         has_stereo_input ? input.channelBuffers32[1] : input.channelBuffers32[0];
-    if (right_in != right_out) {
+    const auto silent_bit = has_stereo_input ? 2U : 1U;
+    if ((input.silenceFlags & silent_bit) != 0) {
+      std::fill_n(right_out, sample_count, 0.0F);
+    } else if (right_in == nullptr) {
+      return Steinberg::kInvalidArgument;
+    } else if (right_in != right_out) {
       std::memcpy(right_out, right_in, sample_count * sizeof(float));
     }
     right = std::span<float>(right_out, sample_count);
   }
 
+  // Advance filter/compressor state even when the host marks all inputs silent.
   runtime_.processBlock(ModernAudioBlock{
       .left = left,
       .right = right,
@@ -207,15 +221,6 @@ void CamelCrusherVst3Processor::applyParameterChanges(
         preset_index.has_value()) {
       runtime_.selectLegacyPreset(preset_index.value(), true);
     }
-  }
-}
-
-void CamelCrusherVst3Processor::clearOutputs(
-    Steinberg::Vst::ProcessData& data) const {
-  auto& output = data.outputs[0];
-  const auto sample_count = static_cast<std::size_t>(data.numSamples);
-  for (Steinberg::int32 channel = 0; channel < output.numChannels; ++channel) {
-    std::memset(output.channelBuffers32[channel], 0, sample_count * sizeof(float));
   }
 }
 

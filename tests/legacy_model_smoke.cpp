@@ -5,7 +5,7 @@
 #include "camelcrusher_recalled/LegacySchema.h"
 #include "camelcrusher_recalled/LegacyState.h"
 
-#include <cassert>
+#include "TestSupport.h"
 #include <cmath>
 #include <cstddef>
 #include <iostream>
@@ -55,21 +55,21 @@ bool nearlyEqual(const float left, const float right) {
 
 int main() {
   const auto descriptors = legacyParameterDescriptors();
-  assert(descriptors.size() == kLegacyParameterCount);
-  assert(descriptors[0].id == LegacyParameterId::kDistOn);
-  assert(descriptors[0].legacy_index == 0U);
-  assert(legacyParameterDescriptor(LegacyParameterId::kMasterVolume).legacy_index ==
+  CC_CHECK(descriptors.size() == kLegacyParameterCount);
+  CC_CHECK(descriptors[0].id == LegacyParameterId::kDistOn);
+  CC_CHECK(descriptors[0].legacy_index == 0U);
+  CC_CHECK(legacyParameterDescriptor(LegacyParameterId::kMasterVolume).legacy_index ==
          11U);
   for (std::size_t index = 0; index < descriptors.size(); ++index) {
-    assert(descriptors[index].legacy_index == index);
-    assert(descriptors[index].key == kLegacyParameterSpecs[index].name);
+    CC_CHECK(descriptors[index].legacy_index == index);
+    CC_CHECK(descriptors[index].key == kLegacyParameterSpecs[index].name);
   }
-  assert(legacyParameterIdFromName("CompressAmount").has_value());
-  assert(legacyParameterIdFromName("CompressAmount").value() ==
+  CC_CHECK(legacyParameterIdFromName("CompressAmount").has_value());
+  CC_CHECK(legacyParameterIdFromName("CompressAmount").value() ==
          LegacyParameterId::kCompressAmount);
-  assert(isSwitchLikeParameter(LegacyParameterId::kDistOn));
-  assert(!isSwitchLikeParameter(LegacyParameterId::kMasterMix));
-  assert(isReservedCompatibilityParameter(LegacyParameterId::kUnused5));
+  CC_CHECK(isSwitchLikeParameter(LegacyParameterId::kDistOn));
+  CC_CHECK(!isSwitchLikeParameter(LegacyParameterId::kMasterMix));
+  CC_CHECK(isReservedCompatibilityParameter(LegacyParameterId::kUnused5));
 
   LegacyParameterArray array_values{};
   for (std::size_t index = 0; index < array_values.size(); ++index) {
@@ -78,9 +78,9 @@ int main() {
 
   const auto state = legacyStateFromArray(array_values);
   const auto round_tripped_values = legacyStateToArray(state);
-  assert(legacyStateMatchesArray(state, array_values));
+  CC_CHECK(legacyStateMatchesArray(state, array_values));
   for (std::size_t index = 0; index < round_tripped_values.size(); ++index) {
-    assert(nearlyEqual(round_tripped_values[index], array_values[index]));
+    CC_CHECK(nearlyEqual(round_tripped_values[index], array_values[index]));
   }
 
   LegacyChunk synthetic_chunk;
@@ -89,38 +89,38 @@ int main() {
 
   const auto encoded = encodeLegacyChunk(synthetic_chunk);
   const auto decoded = decodeLegacyChunk(encoded);
-  assert(decoded.ok());
-  assert(decoded.chunk.has_value());
+  CC_CHECK(decoded.ok());
+  CC_CHECK(decoded.chunk.has_value());
 
   const auto preset_bank = legacyPresetBankFromChunk(decoded.chunk.value());
-  assert(!hasExpectedLegacyProgramCount(preset_bank));
-  assert(preset_bank.presets.size() == 2U);
-  assert(legacyPresetAt(preset_bank, 1) != nullptr);
-  assert(legacyPresetAt(preset_bank, 1)->name == "Second Program");
-  assert(legacyPresetIndexByName(preset_bank, "Second Program").has_value());
-  assert(legacyPresetIndexByName(preset_bank, "Second Program").value() == 1U);
+  CC_CHECK(!hasExpectedLegacyProgramCount(preset_bank));
+  CC_CHECK(preset_bank.presets.size() == 2U);
+  CC_CHECK(legacyPresetAt(preset_bank, 1) != nullptr);
+  CC_CHECK(legacyPresetAt(preset_bank, 1)->name == "Second Program");
+  CC_CHECK(legacyPresetIndexByName(preset_bank, "Second Program").has_value());
+  CC_CHECK(legacyPresetIndexByName(preset_bank, "Second Program").value() == 1U);
 
   auto explicit_values = decoded.chunk->programs[1].parameter_values;
   explicit_values[7] += 0.125F;
 
   const auto imported = importLegacyState(decoded.chunk.value(), 1, explicit_values);
-  assert(imported.current_state_source ==
+  CC_CHECK(imported.current_state_source ==
          LegacyCurrentStateSource::kExplicitParameters);
-  assert(imported.selected_program_index.has_value());
-  assert(imported.selected_program_index.value() == 1U);
-  assert(imported.selected_program_name == "Second Program");
-  assert(!imported.selected_program_matches_explicit_parameters);
-  assert(imported.parameter_mismatches.size() == 1U);
-  assert(imported.parameter_mismatches.front().id ==
+  CC_CHECK(imported.selected_program_index.has_value());
+  CC_CHECK(imported.selected_program_index.value() == 1U);
+  CC_CHECK(imported.selected_program_name == "Second Program");
+  CC_CHECK(!imported.selected_program_matches_explicit_parameters);
+  CC_CHECK(imported.parameter_mismatches.size() == 1U);
+  CC_CHECK(imported.parameter_mismatches.front().id ==
          LegacyParameterId::kCompressAmount);
-  assert(imported.parameter_mismatches.front().legacy_index == 7U);
-  assert(nearlyEqual(imported.parameter_mismatches.front().selected_program_value,
+  CC_CHECK(imported.parameter_mismatches.front().legacy_index == 7U);
+  CC_CHECK(nearlyEqual(imported.parameter_mismatches.front().selected_program_value,
                      decoded.chunk->programs[1].parameter_values[7]));
-  assert(nearlyEqual(imported.parameter_mismatches.front().explicit_parameter_value,
+  CC_CHECK(nearlyEqual(imported.parameter_mismatches.front().explicit_parameter_value,
                      explicit_values[7]));
 
   const auto imported_values = importedStateToArray(imported);
-  assert(nearlyEqual(imported_values[7], explicit_values[7]));
+  CC_CHECK(nearlyEqual(imported_values[7], explicit_values[7]));
 
   std::cout << "Legacy model smoke test passed\n";
   return 0;
