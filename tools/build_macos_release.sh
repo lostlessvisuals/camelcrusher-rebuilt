@@ -120,7 +120,8 @@ configure_au_component_plist
 for format in vst2 vst3; do
   component_plist="$stage_dir/$format-components.plist"
   pkgbuild --analyze --root "$payload_dir/$format" "$component_plist" >/dev/null
-  /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$component_plist"
+  /usr/libexec/PlistBuddy -c "Add :0:BundleIsRelocatable bool false" "$component_plist" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$component_plist"
   /usr/libexec/PlistBuddy -c "Set :0:BundleIsVersionChecked false" "$component_plist"
   /usr/libexec/PlistBuddy -c "Set :0:BundleOverwriteAction upgrade" "$component_plist"
 done
