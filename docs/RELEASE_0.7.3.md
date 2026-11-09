@@ -23,3 +23,15 @@ The package retains ad hoc plug-in signing and is not Developer ID notarized. Th
 ## Validation
 
 The release builder runs the complete test suite with checks enabled, expands the final installer, and tests its actual VST2 and VST3 payloads. The AU routing tests run in-process; package validation also checks AU payload equality and signatures. Installed/out-of-process AU and the reporter's actual host still need a listening check.
+
+Verified on November 9, 2026, on an Apple M2 Pro:
+
+- 21/21 tests passed in Debug and Release.
+- The packaged VST2 passed 288 routing cases, each exercising replacing, accumulating, and in-place processing, plus 20 wet factory-preset channel-symmetry checks.
+- The packaged VST3 passed 540 routing cases and a silent-input filter-tail check.
+- AU passed 180 negotiated noninterleaved stereo cases, including host-null output buffers, plus explicit unsupported-format rejection checks.
+- The new independent VST2 test fails against the previous 0.7.2 package, as expected.
+- All three plug-in binaries are native arm64. Package checks verified plug-in signatures and AU payload equality.
+
+Build source: `4365f623e3041aca85d2a29c95adb5a86a3e7935`, from a clean checkout.
+Installer checksum: [SHA-256](../downloads/CamelCrusher-Rebuilt-0.7.3.sha256).

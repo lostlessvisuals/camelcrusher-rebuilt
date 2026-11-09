@@ -1,5 +1,12 @@
 # Current Handoff
 
+## 0.7.3 Stereo Corrections
+- The VST2 binary interface, channel routing, and accumulating callback are corrected; audio-thread file logging is removed. The public class declaration and implementation are synchronized.
+- VST3 negotiates mono-to-stereo and preserves filter tails on silent inputs. AU explicitly supports noninterleaved Float32 stereo, with null-output-buffer handling and unsupported-format rejection tests.
+- All 21 tests pass in Debug and Release. The final package's VST2 passed 288 routing cases and 20 wet-preset checks; VST3 passed 540 routing cases and a filter-tail check. AU passed 180 in-process routing cases. The new independent VST2 test correctly fails against 0.7.2.
+- Built from clean source commit `4365f623e3041aca85d2a29c95adb5a86a3e7935`. See `docs/RELEASE_0.7.3.md` and `downloads/CamelCrusher-Rebuilt-0.7.3.sha256`.
+- Earlier stereo-success claims below are historical and were not comprehensive. The original reporter's host/format remain unknown. Installed/out-of-process AU and real-host listening with this release remain unverified; no exact original-DSP parity is claimed.
+
 ## Active Objective
 - Productize the now-working `AU`, `VST2`, and `VST3` builds into a release-ready macOS install story without changing the public export into a visibly different repo from local development.
 
