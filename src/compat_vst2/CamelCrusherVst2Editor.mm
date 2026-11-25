@@ -184,11 +184,9 @@ void drawSpriteFrame(NSImage* image,
   const CGFloat clamped_index =
       std::clamp(static_cast<CGFloat>(frame_index), 0.0,
                  static_cast<CGFloat>(frame_count - 1));
+  // CGImage crops use image rows from the top of the sprite sheet.
   const CGRect source_rect =
-      CGRectMake(0.0,
-                 height - ((clamped_index + 1.0) * frame_height),
-                 width,
-                 frame_height);
+      CGRectMake(0.0, clamped_index * frame_height, width, frame_height);
   CGImageRef frame_image = CGImageCreateWithImageInRect(cg_image, source_rect);
   if (frame_image == nullptr) {
     return;
@@ -292,7 +290,7 @@ NSAttributedString* styledProgramTitle(NSString* title) {
 
   const CGFloat value = static_cast<CGFloat>(self.doubleValue);
   const CGFloat indicator_angle =
-      (-140.0 + (value * 280.0)) * static_cast<CGFloat>(M_PI) / 180.0;
+      (230.0 - (value * 280.0)) * static_cast<CGFloat>(M_PI) / 180.0;
   NSPoint indicator_end =
       NSMakePoint(center.x + std::cos(indicator_angle) * (radius - 13.0),
                   center.y + std::sin(indicator_angle) * (radius - 13.0));
@@ -319,7 +317,7 @@ NSAttributedString* styledProgramTitle(NSString* title) {
 
 - (void)mouseDown:(NSEvent*)event {
   dragOriginValue_ = self.doubleValue;
-  dragOriginY_ = [self convertPoint:event.locationInWindow fromView:nil].y;
+  dragOriginY_ = event.locationInWindow.y;
 
   BOOL keep_tracking = YES;
   while (keep_tracking) {
@@ -330,9 +328,7 @@ NSAttributedString* styledProgramTitle(NSString* title) {
       continue;
     }
 
-    const CGFloat current_y =
-        [self convertPoint:next_event.locationInWindow fromView:nil].y;
-    const CGFloat delta = (dragOriginY_ - current_y) / 160.0;
+    const CGFloat delta = (next_event.locationInWindow.y - dragOriginY_) / 160.0;
     const double new_value =
         std::clamp(dragOriginValue_ + static_cast<double>(delta), 0.0, 1.0);
     if (std::fabs(new_value - self.doubleValue) > 0.00001) {
@@ -365,7 +361,7 @@ NSAttributedString* styledProgramTitle(NSString* title) {
 - (void)drawRect:(NSRect)dirtyRect {
   [super drawRect:dirtyRect];
   const NSInteger frame_index =
-      self.state == NSControlStateValueOn ? 0 : self.frameCount - 1;
+      self.state == NSControlStateValueOn ? self.frameCount - 1 : 0;
   drawSpriteFrame(self.spriteImage, frame_index, self.frameCount, self.bounds);
 }
 
@@ -396,7 +392,7 @@ NSAttributedString* styledProgramTitle(NSString* title) {
 
 - (void)drawRect:(NSRect)dirtyRect {
   [super drawRect:dirtyRect];
-  const NSInteger frame_index = self.pressed ? 1 : 0;
+  const NSInteger frame_index = self.pressed ? 0 : 1;
   drawSpriteFrame(self.spriteImage, frame_index, self.frameCount, self.bounds);
 }
 

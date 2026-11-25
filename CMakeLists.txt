@@ -372,10 +372,11 @@ if(CAMELCRUSHER_ENABLE_VST2_COMPATIBILITY)
 
         target_include_directories(vst2_editor_smoke
             PRIVATE
-                src/compat_vst2
                 src/compat_vst2/sdk
-                "${CAMELCRUSHER_VST2_SOURCE_ROOT}/public.sdk/source/vst2.x"
         )
+        add_dependencies(vst2_editor_smoke camelcrusher_vst2)
+        target_compile_definitions(vst2_editor_smoke PRIVATE
+            CAMELCRUSHER_VST2_BINARY="${camelcrusher_vst2_bundle_dir}/Contents/MacOS/${CAMELCRUSHER_VST2_BUNDLE_NAME}")
 
         target_compile_options(vst2_editor_smoke
             PRIVATE
@@ -384,8 +385,6 @@ if(CAMELCRUSHER_ENABLE_VST2_COMPATIBILITY)
 
         target_link_libraries(vst2_editor_smoke
             PRIVATE
-                camelcrusher_vst2_shared
-                camelcrusher_vst2_sdk
                 ${VST2_APPKIT_FRAMEWORK}
                 ${VST2_FOUNDATION_FRAMEWORK}
         )
@@ -564,7 +563,11 @@ if(APPLE)
 
     add_executable(modern_vst3_editor_smoke
         tests/modern_vst3_editor_smoke.mm
+        third_party/vst3sdk/public.sdk/source/vst/hosting/module_mac.mm
     )
+    add_dependencies(modern_vst3_editor_smoke camelcrusher_modern_vst3)
+    target_compile_definitions(modern_vst3_editor_smoke PRIVATE
+        CAMELCRUSHER_VST3_BUNDLE_PATH="$<TARGET_PROPERTY:camelcrusher_modern_vst3,SMTG_PLUGIN_PACKAGE_PATH>")
 
     target_include_directories(modern_vst3_editor_smoke
         PRIVATE
@@ -573,8 +576,6 @@ if(APPLE)
 
     target_link_libraries(modern_vst3_editor_smoke
         PRIVATE
-            camelcrusher_core
-            camelcrusher_modern_vst3_shared
             sdk
             sdk_common
             sdk_hosting

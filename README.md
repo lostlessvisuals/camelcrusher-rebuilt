@@ -18,9 +18,9 @@ The current host-facing plug-in name is still `CamelCrusher`.
 
 Download the current macOS installer directly from the repo:
 
-- [CamelCrusher-Rebuilt-0.7.3.pkg](downloads/CamelCrusher-Rebuilt-0.7.3.pkg)
+- [Download CamelCrusher Rebuilt 0.7.4 for macOS](https://raw.githubusercontent.com/lostlessvisuals/camelcrusher-rebuilt/v0.7.4/downloads/CamelCrusher-Rebuilt-0.7.4.pkg)
 
-Version 0.7.3 fixes VST2 stereo routing. Quit your audio host before installing, then reopen it. [Release notes](docs/RELEASE_0.7.3.md).
+Version 0.7.4 fixes the backwards knobs in VST2, VST3, and AU. Existing sessions sound the same. Quit your audio host before installing, then reopen it. [Release notes](docs/RELEASE_0.7.4.md).
 
 Versioned announcement posts can also live on [GitHub Releases](https://github.com/lostlessvisuals/camelcrusher-rebuilt/releases).
 

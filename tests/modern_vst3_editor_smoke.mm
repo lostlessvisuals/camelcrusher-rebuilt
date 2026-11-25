@@ -1,4 +1,5 @@
-#include "CamelCrusherVst3Controller.h"
+#include "CamelCrusherVst3IDs.h"
+#include "public.sdk/source/vst/hosting/module.h"
 
 #include "pluginterfaces/gui/iplugview.h"
 #include "pluginterfaces/vst/ivsteditcontroller.h"
@@ -7,11 +8,16 @@
 #import <AppKit/AppKit.h>
 
 #include "TestSupport.h"
+#include "KnobEditorChecks.h"
 
-int main() {
+int main(int argc, char** argv) {
   @autoreleasepool {
     auto host = Steinberg::owned(new Steinberg::Vst::HostApplication());
-    auto* controller = new camelcrusher_recalled::vst3::CamelCrusherVst3Controller();
+    std::string error;
+    auto module = VST3::Hosting::Module::create(argc == 2 ? argv[1] : CAMELCRUSHER_VST3_BUNDLE_PATH, error);
+    CC_CHECK(module != nullptr);
+    auto controller = module->getFactory().createInstance<Steinberg::Vst::IEditController>(
+        VST3::UID::fromTUID(camelcrusher_recalled::vst3::kCamelCrusherVst3ControllerUID));
     CC_CHECK(controller != nullptr);
     CC_CHECK(controller->initialize(host.get()) == Steinberg::kResultOk);
 
@@ -24,6 +30,7 @@ int main() {
     CC_CHECK(view->attached((__bridge void*)parent, Steinberg::kPlatformTypeNSView) ==
            Steinberg::kResultOk);
     CC_CHECK(parent.subviews.count == 1);
+    checkMixKnob(parent, [&] { return controller->getParamNormalized(10); });
 
     Steinberg::ViewRect rect{};
     CC_CHECK(view->getSize(&rect) == Steinberg::kResultTrue);
@@ -35,7 +42,6 @@ int main() {
 
     view->release();
     controller->terminate();
-    controller->release();
   }
   return 0;
 }

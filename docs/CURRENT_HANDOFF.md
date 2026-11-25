@@ -1,5 +1,9 @@
 # Current Handoff
 
+## 0.7.4 Knob Direction
+- Corrected mouse tracking and rotary sprite order in VST2, VST3, and AU. The audio mix law and stored values were already correct; no state migration is needed.
+- Offscreen editor tests read Mix back from each format and inspect the drawn pointer at minimum, midpoint, and maximum. Package validation repeats these tests on the extracted VST2 and VST3 bundles; AU editor testing is in-process.
+
 ## 0.7.3 Stereo Corrections
 - The VST2 binary interface, channel routing, and accumulating callback are corrected; audio-thread file logging is removed. The public class declaration and implementation are synchronized.
 - VST3 negotiates mono-to-stereo and preserves filter tails on silent inputs. AU explicitly supports noninterleaved Float32 stereo, with null-output-buffer handling and unsupported-format rejection tests.

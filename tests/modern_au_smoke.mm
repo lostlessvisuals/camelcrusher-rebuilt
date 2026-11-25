@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include "TestSupport.h"
+#include "KnobEditorChecks.h"
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -114,6 +115,7 @@ int main() {
     CC_CHECK(requested_view_controller.view != nil);
     CC_CHECK(requested_view_controller.view.frame.size.width > 0.0);
     CC_CHECK(requested_view_controller.view.frame.size.height > 0.0);
+    checkMixKnob(requested_view_controller.view, [&] { return master_mix.value; });
 
     NSDictionary<NSString*, id>* default_state = unit.fullState;
     NSData* default_blob = default_state[CamelCrusherRecalledAUStateBlobKey];

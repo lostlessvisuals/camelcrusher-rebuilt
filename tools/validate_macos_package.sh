@@ -16,7 +16,9 @@ for bundle in "$vst2" "$vst3" "$au"; do
 done
 
 "$build_dir/vst2_host_contract" "$vst2/Contents/MacOS/CamelCrusher"
+"$build_dir/vst2_editor_smoke" "$vst2/Contents/MacOS/CamelCrusher"
 "$build_dir/modern_vst3_bundle_smoke" "$vst3"
+"$build_dir/modern_vst3_editor_smoke" "$vst3"
 "$build_dir/au_stereo_contract"
 
 # The AU extension is an executable, not a dlopen-able module. Check that the
@@ -26,4 +28,4 @@ cmp "$au/$extension/MacOS/CamelCrusherAU" \
     "$build_dir/CamelCrusherHost.app/$extension/MacOS/CamelCrusherAU"
 cmp "$au/$extension/Frameworks/libcamelcrusher_runtime_bridge.dylib" \
     "$build_dir/CamelCrusherHost.app/$extension/Frameworks/libcamelcrusher_runtime_bridge.dylib"
-echo "Packaged VST2/VST3 processing, AU source routing, signatures and AU payload checks passed."
+echo "Packaged VST2/VST3 processing and editors, AU routing, signatures and AU payload checks passed."
